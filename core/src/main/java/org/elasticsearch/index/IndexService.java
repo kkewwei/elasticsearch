@@ -324,9 +324,9 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
                     routing.getExpectedShardSize() == ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE
                         ? getAvgShardSizeInBytes() : routing.getExpectedShardSize(),
                     dataPathToShardCount);
-                logger.debug("{} creating using a new path [{}]", shardId, path);
+                logger.info("{} creating using a new path [{}]", shardId, path);
             } else {
-                logger.debug("{} creating using an existing path [{}]", shardId, path);
+                logger.info("{} creating using an existing path [{}]", shardId, path);
             }
 
             if (shards.containsKey(shardId.id())) {

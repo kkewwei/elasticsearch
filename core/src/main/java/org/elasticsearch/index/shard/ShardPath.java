@@ -32,10 +32,13 @@ import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Random;
 
 public final class ShardPath {
     public static final String INDEX_FOLDER_NAME = "index";
     public static final String TRANSLOG_FOLDER_NAME = "translog";
+
+    public static int shardRountBinNumber = -1;
 
     private final Path path;
     private final ShardId shardId;
@@ -167,7 +170,6 @@ public final class ShardPath {
 
     public static ShardPath selectNewPathForShard(NodeEnvironment env, ShardId shardId, IndexSettings indexSettings,
                                                   long avgShardSizeInBytes, Map<Path,Integer> dataPathToShardCount) throws IOException {
-
         final Path dataPath;
         final Path statePath;
 
@@ -175,39 +177,12 @@ public final class ShardPath {
             dataPath = env.resolveCustomLocation(indexSettings, shardId);
             statePath = env.nodePaths()[0].resolve(shardId);
         } else {
-            BigInteger totFreeSpace = BigInteger.ZERO;
-            for (NodeEnvironment.NodePath nodePath : env.nodePaths()) {
-                totFreeSpace = totFreeSpace.add(BigInteger.valueOf(nodePath.fileStore.getUsableSpace()));
-            }
-
-            // TODO: this is a hack!!  We should instead keep track of incoming (relocated) shards since we know
-            // how large they will be once they're done copying, instead of a silly guess for such cases:
-
-            // Very rough heuristic of how much disk space we expect the shard will use over its lifetime, the max of current average
-            // shard size across the cluster and 5% of the total available free space on this node:
-            BigInteger estShardSizeInBytes = BigInteger.valueOf(avgShardSizeInBytes).max(totFreeSpace.divide(BigInteger.valueOf(20)));
-
-            // TODO - do we need something more extensible? Yet, this does the job for now...
             final NodeEnvironment.NodePath[] paths = env.nodePaths();
-            NodeEnvironment.NodePath bestPath = null;
-            BigInteger maxUsableBytes = BigInteger.valueOf(Long.MIN_VALUE);
-            for (NodeEnvironment.NodePath nodePath : paths) {
-                FileStore fileStore = nodePath.fileStore;
-
-                BigInteger usableBytes = BigInteger.valueOf(fileStore.getUsableSpace());
-                assert usableBytes.compareTo(BigInteger.ZERO) >= 0;
-
-                // Deduct estimated reserved bytes from usable space:
-                Integer count = dataPathToShardCount.get(nodePath.path);
-                if (count != null) {
-                    usableBytes = usableBytes.subtract(estShardSizeInBytes.multiply(BigInteger.valueOf(count)));
-                }
-                if (bestPath == null || usableBytes.compareTo(maxUsableBytes) > 0) {
-                    maxUsableBytes = usableBytes;
-                    bestPath = nodePath;
-                }
+            if (shardRountBinNumber == -1) {
+                shardRountBinNumber = new Random().nextInt(paths.length);
             }
-
+            NodeEnvironment.NodePath bestPath = paths[ShardPath.shardRountBinNumber];
+            ShardPath.shardRountBinNumber = ++ ShardPath.shardRountBinNumber % paths.length;
             statePath = bestPath.resolve(shardId);
             dataPath = statePath;
         }
