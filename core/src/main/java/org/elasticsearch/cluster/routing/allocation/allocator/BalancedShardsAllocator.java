@@ -234,7 +234,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
         private final RoutingNodes routingNodes;
         private final WeightFunction weight;
 
-        private final float threshold;
+        private final float threshold;  //阈值为1
         private final MetaData metaData;
         private final float avgShardsPerNode;
         private final NodeSorter sorter;
@@ -514,10 +514,10 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                     advance_range:
                     if (maxNode.numShards(index) > 0) {
                         final float delta = absDelta(weights[lowIdx], weights[highIdx]);
-                        if (lessThan(delta, threshold)) {
+                        if (lessThan(delta, threshold)) {  //
                             if (lowIdx > 0 && highIdx-1 > 0 // is there a chance for a higher delta?
                                 && (absDelta(weights[0], weights[highIdx-1]) > threshold) // check if we need to break at all
-                                ) {
+                                ) {  //low和high差距大于阈值，那么还是可以继续找的
                                 /* This is a special case if allocations from the "heaviest" to the "lighter" nodes is not possible
                                  * due to some allocation decider restrictions like zone awareness. if one zone has for instance
                                  * less nodes than another zone. so one zone is horribly overloaded from a balanced perspective but we
@@ -534,7 +534,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                                 logger.trace("Stop balancing index [{}]  min_node [{}] weight: [{}]  max_node [{}] weight: [{}]  delta: [{}]",
                                         index, maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], delta);
                             }
-                            break;
+                            break; //low和high差距小于阈值，那么完全不用找了。
                         }
                         if (logger.isTraceEnabled()) {
                             logger.trace("Balancing from node [{}] weight: [{}] to node [{}] weight: [{}]  delta: [{}]",
@@ -642,7 +642,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
         public void moveShards() {
             // Iterate over the started shards interleaving between nodes, and check if they can remain. In the presence of throttling
             // shard movements, the goal of this iteration order is to achieve a fairer movement of shards from the nodes that are
-            // offloading the shards.
+            // offloading the shards.  //实际上，每次moveShards只会从每个node中选择一个shard迁移
             for (Iterator<ShardRouting> it = allocation.routingNodes().nodeInterleavedShardIterator(); it.hasNext(); ) {
                 ShardRouting shardRouting = it.next();
                 final MoveDecision moveDecision = decideMove(shardRouting);
@@ -684,7 +684,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             final ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());
             assert sourceNode != null && sourceNode.containsShard(shardRouting);
             RoutingNode routingNode = sourceNode.getRoutingNode();
-            Decision canRemain = allocation.deciders().canRemain(shardRouting, routingNode, allocation);
+            Decision canRemain = allocation.deciders().canRemain(shardRouting, routingNode, allocation);  //确定该节点是否还能存储在当前节点上
             if (canRemain.type() != Decision.Type.NO) {
                 return MoveDecision.stay(canRemain);
             }
@@ -700,7 +700,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             RoutingNode targetNode = null;
             final List<NodeAllocationResult> nodeExplanationMap = explain ? new ArrayList<>() : null;
             int weightRanking = 0;
-            for (ModelNode currentNode : sorter.modelNodes) {
+            for (ModelNode currentNode : sorter.modelNodes) {  // 可用节点
                 if (currentNode != sourceNode) {
                     RoutingNode target = currentNode.getRoutingNode();
                     // don't use canRebalance as we want hard filtering rules to apply. See #17698

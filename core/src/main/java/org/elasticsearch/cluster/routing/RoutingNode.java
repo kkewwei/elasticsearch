@@ -217,7 +217,7 @@ public class RoutingNode implements Iterable<ShardRouting> {
     }
 
     public List<ShardRouting> copyShards() {
-        return new ArrayList<>(shards.values());
+        return new ArrayList<>(shards.values()); // 每次拿的顺序和放的顺序一致， 只要当前节点上正在迁移的分片不处于started, 该节点上需要迁移的分片是不可能迁移的。
     }
 
     public boolean isEmpty() {

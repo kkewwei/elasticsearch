@@ -114,7 +114,7 @@ public abstract class Decision implements ToXContent, Writeable {
         public void writeTo(StreamOutput out) throws IOException {
             out.writeVInt(id);
         }
-
+        // yes最高
         public boolean higherThan(Type other) {
             if (this == NO) {
                 return false;
