@@ -113,8 +113,8 @@ public final class IndicesRequestCache extends AbstractComponent implements Remo
             DirectoryReader reader, BytesReference cacheKey) throws Exception {
         final Key key =  new Key(cacheEntity, reader.getVersion(), cacheKey);
         Loader cacheLoader = new Loader(cacheEntity, loader);
-        BytesReference value = cache.computeIfAbsent(key, cacheLoader);
-        if (cacheLoader.isLoaded()) {
+        BytesReference value = cache.computeIfAbsent(key, cacheLoader); //从这个cache中拿数据，看是否有没有
+        if (cacheLoader.isLoaded()) {  // 没有loaded
             key.entity.onMiss();
             // see if its the first time we see this reader, and make sure to register a cleanup key
             CleanupKey cleanupKey = new CleanupKey(cacheEntity, reader.getVersion());

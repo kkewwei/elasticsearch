@@ -190,7 +190,7 @@ public class Cache<K, V> {
         ReleasableLock readLock = new ReleasableLock(segmentLock.readLock());
         ReleasableLock writeLock = new ReleasableLock(segmentLock.writeLock());
 
-        Map<K, CompletableFuture<Entry<K, V>>> map = new HashMap<>();
+        Map<K, CompletableFuture<Entry<K, V>>> map = new HashMap<>();  // 里面存放着key-value
 
         SegmentStats segmentStats = new SegmentStats();
 
@@ -372,7 +372,7 @@ public class Cache<K, V> {
                 evictEntry(e);
             }
         });
-        if (value == null) {
+        if (value == null) {  // 没有load到
             // we need to synchronize loading of a value for a given key; however, holding the segment lock while
             // invoking load can lead to deadlock against another thread due to dependent key loading; therefore, we
             // need a mechanism to ensure that load is invoked at most once, but we are not invoking load while holding
@@ -387,12 +387,12 @@ public class Cache<K, V> {
             }
 
             BiFunction<? super Entry<K, V>, Throwable, ? extends V> handler = (ok, ex) -> {
-                if (ok != null) {
+                if (ok != null) {  //说明结果不为空， 有缓存
                     try (ReleasableLock ignored = lruLock.acquire()) {
                         promote(ok, now);
                     }
                     return ok.value;
-                } else {
+                } else { //说明抛了异常
                     try (ReleasableLock ignored = segment.writeLock.acquire()) {
                         CompletableFuture<Entry<K, V>> sanity = segment.map.get(key);
                         if (sanity != null && sanity.isCompletedExceptionally()) {
@@ -404,7 +404,7 @@ public class Cache<K, V> {
             };
 
             CompletableFuture<V> completableValue;
-            if (future == null) {
+            if (future == null) { //第一次， 这个key的没值
                 future = completableFuture;
                 completableValue = future.handle(handler);
                 V loaded;
@@ -421,7 +421,7 @@ public class Cache<K, V> {
                 } else {
                     future.complete(new Entry<>(key, loaded, now));
                 }
-            } else {
+            } else { // 可能正有人在计算该值，那么本线程将在这里等待
                 completableValue = future.handle(handler);
             }
 
