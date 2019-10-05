@@ -183,7 +183,7 @@ final class Checkpoint {
             '}';
     }
 
-    public static Checkpoint read(Path path) throws IOException {
+    public static Checkpoint read(Path path) throws IOException {  // 读取当前的checkpoint文件
         try (Directory dir = new SimpleFSDirectory(path.getParent())) {
             try (IndexInput indexInput = dir.openInput(path.getFileName().toString(), IOContext.DEFAULT)) {
                 // We checksum the entire file before we even go and parse it. If it's corrupted we barf right here.

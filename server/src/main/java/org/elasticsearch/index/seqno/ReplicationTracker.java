@@ -60,7 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-/**
+/**  // 是master为了追踪目前active的shard，然后将本地的globalCheckpoint同步给所有的副本
  * This class is responsible for tracking the replication group with its progress and safety markers (local and global checkpoints).
  *
  * The global checkpoint is the highest sequence number for which all lower (or equal) sequence number have been processed
@@ -68,7 +68,7 @@ import java.util.stream.Stream;
  * them, and before this primary shard has been notified of this fact, we also include shards that have completed recovery. These shards
  * have received all old operations via the recovery mechanism and are kept up to date by the various replications actions. The set of
  * shards that are taken into account for the global checkpoint calculation are called the "in-sync shards".
- * <p>
+ * <p>// 向别的副本同步global checkpoint被称为in-sync shards，由GlobalCheckpointSyncAction函数来完成
  * The global checkpoint is maintained by the primary shard and is replicated to all the replicas (via {@link GlobalCheckpointSyncAction}).
  */
 public class ReplicationTracker extends AbstractIndexShardComponent implements LongSupplier {
@@ -76,7 +76,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     /**
      * The allocation ID for the shard to which this tracker is a component of.
      */
-    final String shardAllocationId;
+    final String shardAllocationId; // 本tracker是属于哪个shard的
 
     /**
      * The global checkpoint tracker can operate in two modes:
@@ -96,13 +96,13 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      *   to replica mode (using {@link #completeRelocationHandoff}), as the relocation target will be in charge of the global checkpoint
      *   computation from that point on.
      */
-    volatile boolean primaryMode;
+    volatile boolean primaryMode;  // 运行主本和副本两种模式
 
     /**
      * The current operation primary term. Management of this value is done through {@link IndexShard} and must only be done when safe. See
      * {@link #setOperationPrimaryTerm(long)}.
      */
-    private volatile long operationPrimaryTerm;
+    private volatile long operationPrimaryTerm; //
 
     /**
      * Boolean flag that indicates if a relocation handoff is in progress. A handoff is started by calling
@@ -125,7 +125,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     /**
      * Boolean flag that indicates whether a relocation handoff completed (see {@link #completeRelocationHandoff}).
      */
-    volatile boolean relocated;
+    volatile boolean relocated; //标记主本是否在迁移中
 
     /**
      * The global checkpoint tracker relies on the property that cluster state updates are applied in-order. After transferring a primary
@@ -144,13 +144,13 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * and / or in-sync, possibly also containing information about unassigned in-sync shard copies. The information that is tracked for
      * each shard copy is explained in the docs for the {@link CheckpointState} class.
      */
-    final Map<String, CheckpointState> checkpoints;
+    final Map<String, CheckpointState> checkpoints; // 所有副本的CheckpointState 都被追踪
 
     /**
      * The current in-memory global checkpoint. In primary mode, this is a cached version of the checkpoint computed from the local
      * checkpoints. In replica mode, this is the in-memory global checkpoint that's communicated by the primary.
      */
-    volatile long globalCheckpoint;
+    volatile long globalCheckpoint;  // 缓存的是本地local checkpoint
 
     /**
      * A callback invoked when the in-memory global checkpoint is updated. For primary mode this occurs if the computed global checkpoint

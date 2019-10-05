@@ -45,13 +45,13 @@ class BulkPrimaryExecutionContext {
          * The incoming request has been translated to a request that can be executed on the shard.
          * This is used to convert update requests to a fully specified index or delete requests.
          */
-        TRANSLATED,
+        TRANSLATED,  // translated, 已经准备写入shard
         /**
          * the request can not execute with the current mapping and should wait for a new mapping
          * to arrive from the master. A mapping request for the needed changes has already been
          * submitted
          */
-        WAIT_FOR_MAPPING_UPDATE,
+        WAIT_FOR_MAPPING_UPDATE,  //
         /**
          * The request should be executed again, but there is no need to wait for an external event.
          * This is needed to support retry on conflicts during updates.
@@ -72,7 +72,7 @@ class BulkPrimaryExecutionContext {
     private int currentIndex = -1;
 
     private ItemProcessingState currentItemState;
-    private DocWriteRequest requestToExecute;
+    private DocWriteRequest requestToExecute;  // 只要把Index
     private BulkItemResponse executionResult;
     private int retryCounter;
 
@@ -195,14 +195,14 @@ class BulkPrimaryExecutionContext {
      */
     public void setRequestToExecute(DocWriteRequest writeRequest) {
         assert assertInvariants(ItemProcessingState.INITIAL);
-        requestToExecute = writeRequest;
+        requestToExecute = writeRequest;  // 这里角色转变还是挺快的
         currentItemState = ItemProcessingState.TRANSLATED;
-        assert assertInvariants(ItemProcessingState.TRANSLATED);
+        assert assertInvariants(ItemProcessingState.TRANSLATED); //stage的转变
     }
 
     /** returns the request that should be executed on the shard. */
     public <T extends DocWriteRequest<T>> T getRequestToExecute() {
-        assert assertInvariants(ItemProcessingState.TRANSLATED);
+        assert assertInvariants(ItemProcessingState.TRANSLATED); //translated
         return (T) requestToExecute;
     }
 

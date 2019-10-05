@@ -107,7 +107,7 @@ final class TranslogHeader {
 
     /**
      * Read a translog header from the given path and file channel
-     */
+     */  // 这是读取tanslog前面一部分
     static TranslogHeader read(final String translogUUID, final Path path, final FileChannel channel) throws IOException {
         try {
             // This input is intentionally not closed because closing it will close the FileChannel.

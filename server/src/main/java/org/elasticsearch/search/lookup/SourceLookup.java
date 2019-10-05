@@ -38,7 +38,7 @@ import static java.util.Collections.emptyMap;
 
 public class SourceLookup implements Map {
 
-    private LeafReader reader;
+    private LeafReader reader;  // LeafReaderContext
 
     private int docId = -1;
 

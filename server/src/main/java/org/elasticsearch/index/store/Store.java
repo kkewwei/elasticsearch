@@ -192,7 +192,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
     public SegmentInfos readLastCommittedSegmentsInfo() throws IOException {
         failIfCorrupted();
         try {
-            return readSegmentsInfo(null, directory());
+            return readSegmentsInfo(null, directory());   // 可以看下如何读取的segments文件
         } catch (CorruptIndexException | IndexFormatTooOldException | IndexFormatTooNewException ex) {
             markStoreCorrupted(ex);
             throw ex;
@@ -463,13 +463,13 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      * Tries to open an index for the given location. This includes reading the
      * segment infos and possible corruption markers. If the index can not
      * be opened, an exception is thrown
-     */
+     */  //仅仅尝试读取下这个的shard的segment文件，若读取失败就抛异常
     public static void tryOpenIndex(Path indexLocation, ShardId shardId, NodeEnvironment.ShardLocker shardLocker,
                                         Logger logger) throws IOException, ShardLockObtainFailedException {
         try (ShardLock lock = shardLocker.lock(shardId, "open index", TimeUnit.SECONDS.toMillis(5));
              Directory dir = new SimpleFSDirectory(indexLocation)) {
             failIfCorrupted(dir, shardId);
-            SegmentInfos segInfo = Lucene.readSegmentInfos(dir);
+            SegmentInfos segInfo = Lucene.readSegmentInfos(dir); // 读取一下当前的segment文件
             logger.trace("{} loaded segment info [{}]", shardId, segInfo);
         }
     }

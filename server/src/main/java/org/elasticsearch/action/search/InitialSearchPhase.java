@@ -250,7 +250,7 @@ abstract class InitialSearchPhase<FirstResult extends SearchPhaseResult> extends
         if (shard == null) {
             fork(() -> onShardFailure(shardIndex, null, null, shardIt, new NoShardAvailableActionException(shardIt.shardId())));
         } else {
-            final PendingExecutions pendingExecutions = throttleConcurrentRequests ?
+            final PendingExecutions pendingExecutions = throttleConcurrentRequests ? // 为false
                 pendingExecutionsPerNode.computeIfAbsent(shard.currentNodeId(), n -> new PendingExecutions(maxConcurrentRequestsPerNode))
                 : null;
             Runnable r = () -> {

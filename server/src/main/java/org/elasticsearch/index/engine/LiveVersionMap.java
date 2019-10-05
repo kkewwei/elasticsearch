@@ -155,11 +155,11 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
         }
 
         void put(BytesRef uid, VersionValue version) {
-            long uidRAMBytesUsed = BASE_BYTES_PER_BYTESREF + uid.bytes.length;
+            long uidRAMBytesUsed = BASE_BYTES_PER_BYTESREF + uid.bytes.length; // 仅仅一个key-value占的大小
             long ramAccounting = BASE_BYTES_PER_CHM_ENTRY + version.ramBytesUsed() + uidRAMBytesUsed;
             VersionValue previousValue = current.put(uid, version);
             ramAccounting += previousValue == null ? 0 : -(BASE_BYTES_PER_CHM_ENTRY + previousValue.ramBytesUsed() + uidRAMBytesUsed);
-            adjustRam(ramAccounting);
+            adjustRam(ramAccounting);  //添加一个key-value, 最终占用的大小
         }
 
         void adjustRam(long value) {
@@ -190,7 +190,7 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
 
     // All deletes also go here, and delete "tombstones" are retained after refresh:
     private final Map<BytesRef, DeleteVersionValue> tombstones = ConcurrentCollections.newConcurrentMapWithAggressiveConcurrency();
-
+    // 可能存放的是uid及IndexVersionValue
     private volatile Maps maps = new Maps();
     // we maintain a second map that only receives the updates that we skip on the actual map (unsafe ops)
     // this map is only maintained if assertions are enabled
@@ -204,15 +204,15 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
      * length of the byte[] (assuming it is not shared between multiple
      * instances).
      */
-    private static final long BASE_BYTES_PER_BYTESREF =
+    private static final long BASE_BYTES_PER_BYTESREF = // 一个bytes_ref所占内存的大小
         // shallow memory usage of the BytesRef object
-        RamUsageEstimator.shallowSizeOfInstance(BytesRef.class) +
+        RamUsageEstimator.shallowSizeOfInstance(BytesRef.class) + // 一个BytesRef.class对象的大小
             // header of the byte[] array
-            RamUsageEstimator.NUM_BYTES_ARRAY_HEADER +
+            RamUsageEstimator.NUM_BYTES_ARRAY_HEADER +  // head对象的大小
             // with an alignment size (-XX:ObjectAlignmentInBytes) of 8 (default),
             // there could be between 0 and 7 lost bytes, so we account for 3
             // lost bytes on average
-            3;
+            3;  // 对其
 
     /**
      * Bytes used by having CHM point to a key/value.
@@ -234,7 +234,7 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
     /**
      * Tracks bytes used by tombstones (deletes)
      */
-    private final AtomicLong ramBytesUsedTombstones = new AtomicLong();
+    private final AtomicLong ramBytesUsedTombstones = new AtomicLong();  //仍然在tombstones对象中的大小
 
     @Override
     public void beforeRefresh() throws IOException {
@@ -326,7 +326,7 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
     void putIndexUnderLock(BytesRef uid, IndexVersionValue version) {
         assert assertKeyedLockHeldByCurrentThread(uid);
         assert uid.bytes.length == uid.length : "Oversized _uid! UID length: " + uid.length + ", bytes length: " + uid.bytes.length;
-        maps.put(uid, version);
+        maps.put(uid, version); // 连占用大小都计算好了
         removeTombstoneUnderLock(uid);
     }
 

@@ -60,7 +60,7 @@ public final class EngineConfig {
     private final ByteSizeValue indexingBufferSize;
     private volatile boolean enableGcDeletes = true;
     private final TimeValue flushMergesAfter;
-    private final String codecName;
+    private final String codecName;// default
     private final ThreadPool threadPool;
     private final Engine.Warmer warmer;
     private final Store store;
@@ -149,12 +149,12 @@ public final class EngineConfig {
         this.threadPool = threadPool;
         this.warmer = warmer == null ? (a) -> {} : warmer;
         this.store = store;
-        this.mergePolicy = mergePolicy;
+        this.mergePolicy = mergePolicy; // EsTieredMergePolicy
         this.analyzer = analyzer;
         this.similarity = similarity;
         this.codecService = codecService;
         this.eventListener = eventListener;
-        codecName = indexSettings.getValue(INDEX_CODEC_SETTING);
+        codecName = indexSettings.getValue(INDEX_CODEC_SETTING); // default
         // We need to make the indexing buffer for this shard at least as large
         // as the amount of memory that is available for all engines on the
         // local node so that decisions to flush segments to disk are made by

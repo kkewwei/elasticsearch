@@ -181,7 +181,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                             indexMetaData = alias.getWriteIndex();
                         }
                     }
-                    if (indexMetaData != null) {
+                    if (indexMetaData != null) { // 会跑到这里，为null
                         // Find the default pipeline if one is defined from and existing index.
                         String defaultPipeline = IndexSettings.DEFAULT_PIPELINE.get(indexMetaData.getSettings());
                         indexRequest.setPipeline(defaultPipeline);
@@ -212,7 +212,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
             }
         }
 
-        if (hasIndexRequestsWithPipelines) {
+        if (hasIndexRequestsWithPipelines) { // 为false
             // this method (doExecute) will be called again, but with the bulk requests updated from the ingest node processing but
             // also with IngestService.NOOP_PIPELINE_NAME on each request. This ensures that this on the second time through this method,
             // this path is never taken.
@@ -228,13 +228,13 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
             return;
         }
 
-        if (needToCheck()) {
+        if (needToCheck()) {  // 会跑到这里
             // Attempt to create all the indices that we're going to need during the bulk before we start.
             // Step 1: collect all the indices in the request
-            final Set<String> indices = bulkRequest.requests.stream()
+            final Set<String> indices = bulkRequest.requests.stream()  // 先获取所有即将写入数据的的索引
                     // delete requests should not attempt to create the index (if the index does not
                     // exists), unless an external versioning is used
-                .filter(request -> request.opType() != DocWriteRequest.OpType.DELETE
+                .filter(request -> request.opType() != DocWriteRequest.OpType.DELETE // 过滤掉即将被删除的索引的记录
                         || request.versionType() == VersionType.EXTERNAL
                         || request.versionType() == VersionType.EXTERNAL_GTE)
                 .map(DocWriteRequest::index)
@@ -257,7 +257,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                 }
             }
             // Step 3: create all the indices that are missing, if there are any missing. start the bulk after all the creates come back.
-            if (autoCreateIndices.isEmpty()) {
+            if (autoCreateIndices.isEmpty()) { // 若不需要创建索引，那么就真正写入
                 executeBulk(task, bulkRequest, startTime, listener, responses, indicesThatCannotBeCreated);
             } else {
                 final AtomicInteger counter = new AtomicInteger(autoCreateIndices.size());

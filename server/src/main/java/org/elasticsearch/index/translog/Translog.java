@@ -109,9 +109,9 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     public static final String TRANSLOG_GENERATION_KEY = "translog_generation";
     public static final String TRANSLOG_UUID_KEY = "translog_uuid";
     public static final String TRANSLOG_FILE_PREFIX = "translog-";
-    public static final String TRANSLOG_FILE_SUFFIX = ".tlog";
-    public static final String CHECKPOINT_SUFFIX = ".ckp";
-    public static final String CHECKPOINT_FILE_NAME = "translog" + CHECKPOINT_SUFFIX;
+    public static final String TRANSLOG_FILE_SUFFIX = ".tlog";  // translog后缀
+    public static final String CHECKPOINT_SUFFIX = ".ckp";  // checkpoint后缀
+    public static final String CHECKPOINT_FILE_NAME = "translog" + CHECKPOINT_SUFFIX; // checkpoint全名  ： translog.ckp
 
     static final Pattern PARSE_STRICT_ID_PATTERN = Pattern.compile("^" + TRANSLOG_FILE_PREFIX + "(\\d+)(\\.tlog)$");
     public static final int DEFAULT_HEADER_SIZE_IN_BYTES = TranslogHeader.headerSizeInBytes(UUIDs.randomBase64UUID());
@@ -122,7 +122,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     protected final ReleasableLock readLock;
     protected final ReleasableLock writeLock;
     private final Path location;
-    private TranslogWriter current;
+    private TranslogWriter current;  // 目前translog文件一个存放位置
 
     protected final TragicExceptionHolder tragedy = new TragicExceptionHolder();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -534,12 +534,12 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         try {
             final long start = out.position();
             out.skip(Integer.BYTES);
-            writeOperationNoSize(new BufferedChecksumStreamOutput(out), operation);
+            writeOperationNoSize(new BufferedChecksumStreamOutput(out), operation); // 把数据写入了out中
             final long end = out.position();
             final int operationSize = (int) (end - Integer.BYTES - start);
             out.seek(start);
-            out.writeInt(operationSize);
-            out.seek(end);
+            out.writeInt(operationSize); // 回写前面的operation长度
+            out.seek(end);  // out中写入了长度/类型/操作的具体值/校验码
             final ReleasablePagedBytesReference bytes = out.bytes();
             try (ReleasableLock ignored = readLock.acquire()) {
                 ensureOpen();
@@ -881,7 +881,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     }
 
 
-    public static class Location implements Comparable<Location> {
+    public static class Location implements Comparable<Location> { // 按道理是translog文件的一个快照点
 
         public final long generation;
         public final long translogLocation;
@@ -1079,12 +1079,12 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
          * Writes the type and translog operation to the given stream
          */
         static void writeOperation(final StreamOutput output, final Operation operation) throws IOException {
-            output.writeByte(operation.opType().id());
+            output.writeByte(operation.opType().id());  // 首先写入operation类型，放入output中
             switch(operation.opType()) {
                 case CREATE:
                     // the serialization logic in Index was identical to that of Create when create was deprecated
                 case INDEX:
-                    ((Index) operation).write(output);
+                    ((Index) operation).write(output);  // 这些序列化过程，都是在本类的Index中存放的
                     break;
                 case DELETE:
                     ((Delete) operation).write(output);
@@ -1218,7 +1218,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
             return new Source(source, routing);
         }
 
-        private void write(final StreamOutput out) throws IOException {
+        private void write(final StreamOutput out) throws IOException {  // 序列化过程
             final int format = out.getVersion().onOrAfter(Version.V_7_0_0) ? SERIALIZATION_FORMAT : FORMAT_6_0;
             out.writeVInt(format);
             out.writeString(id);
@@ -1610,10 +1610,10 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         // This BufferedChecksumStreamOutput remains unclosed on purpose,
         // because closing it closes the underlying stream, which we don't
         // want to do here.
-        out.resetDigest();
+        out.resetDigest();  // 将Index数据写入out中
         Translog.Operation.writeOperation(out, op);
-        long checksum = out.getChecksum();
-        out.writeInt((int) checksum);
+        long checksum = out.getChecksum(); // 得到out里面的CRC校验码
+        out.writeInt((int) checksum); // 最后把校验码写入每条数据的末尾
     }
 
     /**
@@ -1812,7 +1812,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     private static Checkpoint readCheckpoint(Path location, String expectedTranslogUUID) throws IOException {
         final Checkpoint checkpoint = readCheckpoint(location);
         // We need to open at least one translog header to validate the translogUUID.
-        final Path translogFile = location.resolve(getFilename(checkpoint.generation));
+        final Path translogFile = location.resolve(getFilename(checkpoint.generation)); //打开translog-x.tlog文件
         try (FileChannel channel = FileChannel.open(translogFile, StandardOpenOption.READ)) {
             TranslogHeader.read(expectedTranslogUUID, translogFile, channel);
         } catch (TranslogCorruptedException ex) {

@@ -112,7 +112,7 @@ public abstract class BytesReference implements Comparable<BytesReference>, ToXC
         final BytesRefIterator iterator = iterator();
         BytesRef ref;
         while ((ref = iterator.next()) != null) {
-            os.write(ref.bytes, ref.offset, ref.length);
+            os.write(ref.bytes, ref.offset, ref.length); //数据写入BufferedOutputStream的buf中
         }
     }
 

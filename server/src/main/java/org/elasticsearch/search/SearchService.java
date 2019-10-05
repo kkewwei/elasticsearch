@@ -325,7 +325,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
     /**
      * Try to load the query results from the cache or execute the query phase directly if the cache cannot be used.
-     */
+     */  // request=ShardSearchTransportRequest
     private void loadOrExecuteQueryPhase(final ShardSearchRequest request, final SearchContext context) throws Exception {
         final boolean canCache = indicesService.canCache(request, context);
         context.getQueryShardContext().freezeContext();
@@ -365,7 +365,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                 }
                 afterQueryTime = executor.success();
             }
-            if (request.numberOfShards() == 1) {
+            if (request.numberOfShards() == 1) { // 若是一个shard，立马执行fetch
                 return executeFetchPhase(context, afterQueryTime);
             }
             return context.queryResult();

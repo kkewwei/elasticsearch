@@ -107,7 +107,7 @@ import java.util.stream.Stream;
 
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
-
+// 针对的是每个shard都有一个该对象
 public abstract class Engine implements Closeable {
 
     public static final String SYNC_COMMIT_ID = "sync_id";
@@ -139,7 +139,7 @@ public abstract class Engine implements Closeable {
      *  NOTE: don't use this value for anything accurate it's a best effort for freeing up diskspace after merges and on a shard level to
      *  reduce index buffer sizes on inactive shards.
      */
-    protected volatile long lastWriteNanos = System.nanoTime();
+    protected volatile long lastWriteNanos = System.nanoTime();  // 最后一次当前engine的写入时间
 
     protected Engine(EngineConfig engineConfig) {
         Objects.requireNonNull(engineConfig.getStore(), "Store must be provided to the engine");
@@ -339,7 +339,7 @@ public abstract class Engine implements Closeable {
     public abstract void trimOperationsFromTranslog(long belowTerm, long aboveSeqNo) throws EngineException;
 
     /** A Lock implementation that always allows the lock to be acquired */
-    protected static final class NoOpLock implements Lock {
+    protected static final class NoOpLock implements Lock {  // 想要获取锁的时候总能获取到
 
         @Override
         public void lock() {
@@ -679,12 +679,12 @@ public abstract class Engine implements Closeable {
         }
         Releasable releasable = store::decRef;
         try {
-            ReferenceManager<IndexSearcher> referenceManager = getReferenceManager(scope);
-            IndexSearcher acquire = referenceManager.acquire();
+            ReferenceManager<IndexSearcher> referenceManager = getReferenceManager(scope); //SearchManager
+            IndexSearcher acquire = referenceManager.acquire();   // 获得IndexSearcher, 并将其中ref+1
             AtomicBoolean released = new AtomicBoolean(false);
             Searcher engineSearcher = new Searcher(source, acquire,
                 () -> {
-                if (released.compareAndSet(false, true)) {
+                if (released.compareAndSet(false, true)) {  // 当这个IndexSearcher关闭的时候该做的事情
                     try {
                         referenceManager.release(acquire);
                     } finally {
@@ -1289,7 +1289,7 @@ public abstract class Engine implements Closeable {
         private final Term uid;
         private final long version;
         private final long seqNo;
-        private final long primaryTerm;
+        private final long primaryTerm;  // 在IndexShard.prepareIndex()中被赋值，是调用该函数时候的值
         private final VersionType versionType;
         private final Origin origin;
         private final long startTime;

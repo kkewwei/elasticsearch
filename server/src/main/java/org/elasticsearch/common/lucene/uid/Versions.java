@@ -22,7 +22,7 @@ package org.elasticsearch.common.lucene.uid;
 public final class Versions {
 
     /** used to indicate the write operation should succeed regardless of current version **/
-    public static final long MATCH_ANY = -3L;
+    public static final long MATCH_ANY = -3L; // 写入时，不用考虑目前的version
 
     /** indicates that the current document was not found in lucene and in the version map */
     public static final long NOT_FOUND = -1L;

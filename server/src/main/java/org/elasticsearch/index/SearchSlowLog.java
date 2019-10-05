@@ -123,6 +123,9 @@ public final class SearchSlowLog implements SearchOperationListener {
     }
     @Override
     public void onQueryPhase(SearchContext context, long tookInNanos) {
+        try{
+            Thread.sleep(100);
+        } catch (Exception e){}
         if (queryWarnThreshold >= 0 && tookInNanos > queryWarnThreshold) {
             queryLogger.warn("{}", new SlowLogSearchContextPrinter(context, tookInNanos));
         } else if (queryInfoThreshold >= 0 && tookInNanos > queryInfoThreshold) {

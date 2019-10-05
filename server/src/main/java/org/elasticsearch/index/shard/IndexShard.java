@@ -212,7 +212,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     protected volatile ShardRouting shardRouting;
     protected volatile IndexShardState state;
     private volatile long pendingPrimaryTerm; // see JavaDocs for getPendingPrimaryTerm
-    protected final AtomicReference<Engine> currentEngineReference = new AtomicReference<>();
+    protected final AtomicReference<Engine> currentEngineReference = new AtomicReference<>(); // 每个IndexShard都维持一个InternalEngine
     final EngineFactory engineFactory;
 
     private final IndexingOperationListener indexingOperationListeners;
@@ -740,7 +740,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         try {
             final String resolvedType = mapperService.resolveDocumentType(sourceToParse.type());
             final SourceToParse sourceWithResolvedType;
-            if (resolvedType.equals(sourceToParse.type())) {
+            if (resolvedType.equals(sourceToParse.type())) { // 跑到这里了
                 sourceWithResolvedType = sourceToParse;
             } else {
                 sourceWithResolvedType = new SourceToParse(sourceToParse.index(), resolvedType, sourceToParse.id(),
@@ -1476,7 +1476,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             return runTranslogRecovery(engine, snapshot, Engine.Operation.Origin.LOCAL_TRANSLOG_RECOVERY,
                 translogRecoveryStats::incrementRecoveredOperations);
         };
-        innerOpenEngineAndTranslog();
+        innerOpenEngineAndTranslog(); // 打开Engine和translog
         getEngine().recoverFromTranslog(translogRecoveryRunner, Long.MAX_VALUE);
     }
 
@@ -1512,8 +1512,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         // we have to set it before we open an engine and recover from the translog because
         // acquiring a snapshot from the translog causes a sync which causes the global checkpoint to be pulled in,
         // and an engine can be forced to close in ctor which also causes the global checkpoint to be pulled in.
-        final String translogUUID = store.readLastCommittedSegmentsInfo().getUserData().get(Translog.TRANSLOG_UUID_KEY);
-        final long globalCheckpoint = Translog.readGlobalCheckpoint(translogConfig.getTranslogPath(), translogUUID);
+        final String translogUUID = store.readLastCommittedSegmentsInfo().getUserData().get(Translog.TRANSLOG_UUID_KEY); // 从segmentInfo中提取translogUUID
+        final long globalCheckpoint = Translog.readGlobalCheckpoint(translogConfig.getTranslogPath(), translogUUID); // 从Translog中提取translogUUID，来做对比
         replicationTracker.updateGlobalCheckpointOnReplica(globalCheckpoint, "read from translog checkpoint");
         updateRetentionLeasesOnReplica(loadRetentionLeases());
         assert recoveryState.getRecoverySource().expectEmptyRetentionLeases() == false || getRetentionLeases().leases().isEmpty()
@@ -1523,7 +1523,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             verifyNotClosed();
             assert currentEngineReference.get() == null : "engine is running";
             // we must create a new engine under mutex (see IndexShard#snapshotStoreMetadata).
-            final Engine newEngine = engineFactory.newReadWriteEngine(config);
+            final Engine newEngine = engineFactory.newReadWriteEngine(config);  // InternalEngineFactory.newReadWriteEngine()产生的是InternalEngine
             onNewEngine(newEngine);
             currentEngineReference.set(newEngine);
             // We set active because we are now writing operations to the engine; this way,
@@ -1797,7 +1797,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public void onSettingsChanged() {
-        Engine engineOrNull = getEngineOrNull();
+        Engine engineOrNull = getEngineOrNull();  // InternalEngine
         if (engineOrNull != null) {
             engineOrNull.onSettingsChanged();
         }

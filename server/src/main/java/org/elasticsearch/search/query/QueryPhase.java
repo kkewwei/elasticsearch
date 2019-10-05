@@ -139,7 +139,7 @@ public class QueryPhase implements SearchPhase {
         try {
             queryResult.from(searchContext.from());
             queryResult.size(searchContext.size());
-            Query query = searchContext.query();
+            Query query = searchContext.query(); //BoostQuery
             assert query == searcher.rewrite(query); // already rewritten
 
             final ScrollContext scrollContext = searchContext.scrollContext();
@@ -262,7 +262,7 @@ public class QueryPhase implements SearchPhase {
                 InternalProfileCollector profileCollector = QueryCollectorContext.createQueryCollectorWithProfiler(collectors);
                 searchContext.getProfilers().getCurrentQueryProfiler().setCollector(profileCollector);
                 queryCollector = profileCollector;
-            } else {
+            } else { // 跑到了这里
                queryCollector = QueryCollectorContext.createQueryCollector(collectors);
             }
 

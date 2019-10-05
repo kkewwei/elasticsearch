@@ -658,7 +658,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             }, clusters);
         } else {
             AbstractSearchAsyncAction<? extends SearchPhaseResult> searchAsyncAction;
-            switch (searchRequest.searchType()) {
+            switch (searchRequest.searchType()) { // 跑这里
                 case DFS_QUERY_THEN_FETCH:
                     searchAsyncAction = new SearchDfsQueryThenFetchAsyncAction(logger, searchTransportService, connectionLookup,
                         aliasFilter, concreteIndexBoosts, indexRoutings, searchPhaseController, executor, searchRequest, listener,

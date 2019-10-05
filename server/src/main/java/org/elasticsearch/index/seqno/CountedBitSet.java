@@ -26,10 +26,10 @@ import org.apache.lucene.util.RamUsageEstimator;
  * A {@link CountedBitSet} wraps a {@link FixedBitSet} but automatically releases the internal bitset
  * when all bits are set to reduce memory usage. This structure can work well for sequence numbers as
  * these numbers are likely to form contiguous ranges (eg. filling all bits).
- */
+ */   // 一个存放int的Set集合。当一个long全部标记为1时候，连续的含义是，加入说寸120个数，发现最后存了120个数，那么我们就将bitset给释放了， 因为我们已经存满了，保存没啥意思了
 public final class CountedBitSet {
     static final long BASE_RAM_BYTES_USED = RamUsageEstimator.shallowSizeOfInstance(CountedBitSet.class);
-    private short onBits; // Number of bits are set.
+    private short onBits; // Number of bits are set. // 存放了多少数值
     private FixedBitSet bitset;
 
     public CountedBitSet(short numBits) {
@@ -52,12 +52,12 @@ public final class CountedBitSet {
 
         // Ignore set when bitset is full.
         if (bitset != null) {
-            final boolean wasOn = bitset.getAndSet(index);
-            if (wasOn == false) {
-                onBits++;
+            final boolean wasOn = bitset.getAndSet(index);  // 之前是否存在
+            if (wasOn == false) {  //  若不存在，就统计
+                onBits++;   //添加
                 // Once all bits are set, we can simply just return YES for all indexes.
                 // This allows us to clear the internal bitset and use null check as the guard.
-                if (onBits == bitset.length()) {
+                if (onBits == bitset.length()) {  // 若所有节点都存放满了，我们可以释放了，存储总的值
                     bitset = null;
                 }
             }

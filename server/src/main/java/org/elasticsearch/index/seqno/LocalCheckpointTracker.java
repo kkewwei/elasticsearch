@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * This class generates sequences numbers and keeps track of the so-called "local checkpoint" which is the highest number for which all
  * previous sequence numbers have been processed (inclusive).
  */
-public class LocalCheckpointTracker {
+public class LocalCheckpointTracker {  // 记录的是本地节点最大的checkpoint
 
     /**
      * We keep a bit for each sequence number that is still pending. To optimize allocation, we do so in multiple sets allocating them on
@@ -55,13 +55,13 @@ public class LocalCheckpointTracker {
 
     /**
      * The current persisted local checkpoint, i.e., all sequence numbers no more than this number have been durably persisted.
-     */
+     *///目前已经被持久化后的最大checpoint
     final AtomicLong persistedCheckpoint = new AtomicLong();
 
     /**
      * The next available sequence number.
      */
-    final AtomicLong nextSeqNo = new AtomicLong();
+    final AtomicLong nextSeqNo = new AtomicLong();  // 大家的下一个seqNum
 
     /**
      * Initialize the local checkpoint service. The {@code maxSeqNo} should be set to the last sequence number assigned, or
@@ -123,7 +123,7 @@ public class LocalCheckpointTracker {
     private void markSeqNo(final long seqNo, final AtomicLong checkPoint, final LongObjectHashMap<CountedBitSet> bitSetMap) {
         assert Thread.holdsLock(this);
         // make sure we track highest seen sequence number
-        advanceMaxSeqNo(seqNo);
+        advanceMaxSeqNo(seqNo);  // 真正的标记下一个该有的seqip
         if (seqNo <= checkPoint.get()) {
             // this is possible during recovery where we might replay an operation that was also replicated
             return;

@@ -57,13 +57,13 @@ public class BigArrays {
         }
 
         long newSize;
-        if (minTargetSize < pageSize) {
+        if (minTargetSize < pageSize) {  // 若小于一个pageSize,
             newSize = ArrayUtil.oversize((int)minTargetSize, bytesPerElement);
-        } else {
+        } else { //大于一个pagesize时，扩大1/8倍
             newSize = minTargetSize + (minTargetSize >>> 3);
         }
 
-        if (newSize > pageSize) {
+        if (newSize > pageSize) { //大于一个pagesize时候，必须取整pagesize
             // round to a multiple of pageSize
             newSize = newSize - (newSize % pageSize) + pageSize;
             assert newSize % pageSize == 0;

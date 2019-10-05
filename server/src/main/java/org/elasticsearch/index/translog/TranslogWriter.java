@@ -59,10 +59,10 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
     /* A buffered outputstream what writes to the writers channel */
     private final OutputStream outputStream;
     /* the total offset of this file including the bytes written to the file as well as into the buffer */
-    private volatile long totalOffset;
+    private volatile long totalOffset;  // 目前写入文件的总长度，包含文件中存在的长度和在buffer中的长度
 
-    private volatile long minSeqNo;
-    private volatile long maxSeqNo;
+    private volatile long minSeqNo;  // 目前该操作赋值的地址operationId
+    private volatile long maxSeqNo; // 目前该操作赋值的地址operationId
 
     private final LongSupplier globalCheckpointSupplier;
     private final LongSupplier minTranslogGenerationSupplier;
@@ -171,7 +171,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
         ensureOpen();
         final long offset = totalOffset;
         try {
-            data.writeTo(outputStream);
+            data.writeTo(outputStream); // 将数据写入outputStream=BufferedChannelOutputStream中，实际是写入了BufferedOutputStream的buf中
         } catch (final Exception ex) {
             closeWithTragicEvent(ex);
             throw ex;
@@ -188,7 +188,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
         minSeqNo = SequenceNumbers.min(minSeqNo, seqNo);
         maxSeqNo = SequenceNumbers.max(maxSeqNo, seqNo);
 
-        nonFsyncedSequenceNumbers.add(seqNo);
+        nonFsyncedSequenceNumbers.add(seqNo);  // 还没有刷新的seqId
 
         operationCounter++;
 

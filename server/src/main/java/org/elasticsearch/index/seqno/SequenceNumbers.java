@@ -40,7 +40,7 @@ public class SequenceNumbers {
     /**
      * Represents an unassigned primary term (e.g., when a primary shard was not yet allocated)
      */
-    public static final long UNASSIGNED_PRIMARY_TERM = 0L;
+    public static final long UNASSIGNED_PRIMARY_TERM = 0L;   // 默认为0
 
     /**
      * Reads the sequence number stats from the commit data (maximum sequence number and local checkpoint).
