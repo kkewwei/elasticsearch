@@ -315,7 +315,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
 
         @Override
         public Rewriteable rewrite(QueryRewriteContext ctx) throws IOException {
-            SearchSourceBuilder newSource = request.source() == null ? null : Rewriteable.rewrite(request.source(), ctx);
+            SearchSourceBuilder newSource = request.source() == null ? null : Rewriteable.rewrite(request.source(), ctx); // 获取到之后
             AliasFilter newAliasFilter = Rewriteable.rewrite(request.getAliasFilter(), ctx);
             if (newSource == request.source() && newAliasFilter == request.getAliasFilter()) {
                 return this;

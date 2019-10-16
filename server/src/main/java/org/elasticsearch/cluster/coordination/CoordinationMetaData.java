@@ -38,12 +38,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+// 也属于MetaDta中的一部分
 public class CoordinationMetaData implements Writeable, ToXContentFragment {
 
     public static final CoordinationMetaData EMPTY_META_DATA = builder().build();
 
-    private final long term;
+    private final long term;  // 就是currentTerm
 
     private final VotingConfiguration lastCommittedConfiguration;
 

@@ -30,7 +30,7 @@ final class ResizableBlockingQueue<E> extends SizeBlockingQueue<E> {
     private volatile int capacity;
 
     ResizableBlockingQueue(BlockingQueue<E> queue, int initialCapacity) {
-        super(queue, initialCapacity);
+        super(queue, initialCapacity); // ResizableBlockingQueue封装了LinkedTransferQueue，但是提供了容量限制
         this.capacity = initialCapacity;
     }
 

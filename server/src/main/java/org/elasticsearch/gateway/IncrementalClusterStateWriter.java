@@ -56,8 +56,8 @@ public class IncrementalClusterStateWriter {
     // On master-eligible nodes we call updateClusterState under the Coordinator's mutex; on master-ineligible data nodes we call
     // updateClusterState on the (unique) cluster applier thread; on other nodes we never call updateClusterState. In all cases there's
     // no need to synchronize access to these fields.
-    private Manifest previousManifest;
-    private ClusterState previousClusterState;
+    private Manifest previousManifest;  // 从全局mainest-xxx.st中读取数据
+    private ClusterState previousClusterState;// 主要从global-yyy.st中读取数据
     private final LongSupplier relativeTimeMillisSupplier;
     private boolean incrementalWrite;
 
@@ -111,10 +111,10 @@ public class IncrementalClusterStateWriter {
         final long startTimeMillis = relativeTimeMillisSupplier.getAsLong();
 
         final AtomicClusterStateWriter writer = new AtomicClusterStateWriter(metaStateService, previousManifest);
-        long globalStateGeneration = writeGlobalState(writer, newMetaData);
-        Map<Index, Long> indexGenerations = writeIndicesMetadata(writer, newState, previousState);
+        long globalStateGeneration = writeGlobalState(writer, newMetaData); // 向global中写入集群元数据
+        Map<Index, Long> indexGenerations = writeIndicesMetadata(writer, newState, previousState);// 向每个索引每个磁盘的路径中写入索引的元数据信息
         Manifest manifest = new Manifest(previousManifest.getCurrentTerm(), newState.version(), globalStateGeneration, indexGenerations);
-        writeManifest(writer, manifest);
+        writeManifest(writer, manifest); // 向Mainfest写入
         previousManifest = manifest;
         previousClusterState = newState;
 
@@ -135,7 +135,7 @@ public class IncrementalClusterStateWriter {
             writer.writeManifestAndCleanup("changed", manifest);
         }
     }
-
+    // 是想每个磁盘下，每个索引路径/data/indices/8l11ps2zRwGmQ0vW8aDTSA/_state写入state-xxx.st
     private Map<Index, Long> writeIndicesMetadata(AtomicClusterStateWriter writer, ClusterState newState, ClusterState previousState)
         throws WriteStateException {
         Map<Index, Long> previouslyWrittenIndices = previousManifest.getIndexGenerations();
@@ -196,7 +196,7 @@ public class IncrementalClusterStateWriter {
             IndexMetaData newIndexMetaData = newMetaData.getIndexSafe(index);
             IndexMetaData previousIndexMetaData = previousMetaData == null ? null : previousMetaData.index(index);
 
-            if (previouslyWrittenIndices.containsKey(index) == false || previousIndexMetaData == null) {
+            if (previouslyWrittenIndices.containsKey(index) == false || previousIndexMetaData == null) {  // 跑到这里了
                 actions.add(new WriteNewIndexMetaData(newIndexMetaData));
             } else if (previousIndexMetaData.getVersion() != newIndexMetaData.getVersion()) {
                 actions.add(new WriteChangedIndexMetaData(previousIndexMetaData, newIndexMetaData));
@@ -230,7 +230,7 @@ public class IncrementalClusterStateWriter {
 
     // exposed for tests
     static Set<Index> getRelevantIndices(ClusterState state) {
-        if (state.nodes().getLocalNode().isMasterNode()) {
+        if (state.nodes().getLocalNode().isMasterNode()) { // 如果是master
             return getRelevantIndicesForMasterEligibleNode(state);
         } else if (state.nodes().getLocalNode().isDataNode()) {
             return getRelevantIndicesOnDataOnlyNode(state);
@@ -265,7 +265,7 @@ public class IncrementalClusterStateWriter {
     static class AtomicClusterStateWriter {
         private static final String FINISHED_MSG = "AtomicClusterStateWriter is finished";
         private final List<Runnable> commitCleanupActions;
-        private final List<Runnable> rollbackCleanupActions;
+        private final List<Runnable> rollbackCleanupActions; // 集群元数据写入时候后如何回滚回去
         private final Manifest previousManifest;
         private final MetaStateService metaStateService;
         private boolean finished;
@@ -285,9 +285,9 @@ public class IncrementalClusterStateWriter {
         long writeGlobalState(String reason, MetaData metaData) throws WriteStateException {
             assert finished == false : FINISHED_MSG;
             try {
-                rollbackCleanupActions.add(() -> metaStateService.cleanupGlobalState(previousManifest.getGlobalGeneration()));
+                rollbackCleanupActions.add(() -> metaStateService.cleanupGlobalState(previousManifest.getGlobalGeneration())); // 就是把保留旧版本的globa
                 long generation = metaStateService.writeGlobalState(reason, metaData);
-                commitCleanupActions.add(() -> metaStateService.cleanupGlobalState(generation));
+                commitCleanupActions.add(() -> metaStateService.cleanupGlobalState(generation)); // 就是保留新版本的global
                 return generation;
             } catch (WriteStateException e) {
                 rollback();

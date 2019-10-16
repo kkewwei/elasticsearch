@@ -97,7 +97,7 @@ public class TransportClusterStatsAction extends TransportNodesAction<ClusterSta
         NodeStats nodeStats = nodeService.stats(CommonStatsFlags.NONE,
                 true, true, true, false, true, false, false, false, false, false, false, false);
         List<ShardStats> shardsStats = new ArrayList<>();
-        for (IndexService indexService : indicesService) {
+        for (IndexService indexService : indicesService) { // 遍历每一个shard
             for (IndexShard indexShard : indexService) {
                 if (indexShard.routingEntry() != null && indexShard.routingEntry().active()) {
                     // only report on fully started shards

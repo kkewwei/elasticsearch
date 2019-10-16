@@ -61,16 +61,16 @@ public final class MergeSchedulerConfig {
         new Setting<>("index.merge.scheduler.max_merge_count",
             (s) -> Integer.toString(MAX_THREAD_COUNT_SETTING.get(s) + 5),
             (s) -> Setting.parseInt(s, 1, "index.merge.scheduler.max_merge_count"), Property.Dynamic, Property.IndexScope);
-    public static final Setting<Boolean> AUTO_THROTTLE_SETTING =
+    public static final Setting<Boolean> AUTO_THROTTLE_SETTING = //开启流量自动限速功能
         Setting.boolSetting("index.merge.scheduler.auto_throttle", true, Property.Dynamic, Property.IndexScope);
 
-    private volatile boolean autoThrottle;
+    private volatile boolean autoThrottle; // 由参数控制是否限流
     private volatile int maxThreadCount;
     private volatile int maxMergeCount;
 
     MergeSchedulerConfig(IndexSettings indexSettings) {
-        int maxThread = indexSettings.getValue(MAX_THREAD_COUNT_SETTING);
-        int maxMerge = indexSettings.getValue(MAX_MERGE_COUNT_SETTING);
+        int maxThread = indexSettings.getValue(MAX_THREAD_COUNT_SETTING); //  这里有个默认，取得是Math.max(1, Math.min(4, EsExecutors.numberOfProcessors(s) / 2)
+        int maxMerge = indexSettings.getValue(MAX_MERGE_COUNT_SETTING); // 默认maxThread+5
         setMaxThreadAndMergeCount(maxThread, maxMerge);
         this.autoThrottle = indexSettings.getValue(AUTO_THROTTLE_SETTING);
     }

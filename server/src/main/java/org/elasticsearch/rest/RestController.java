@@ -479,7 +479,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
             close();
             delegate.sendResponse(response);
         }
-
+        // 熔断器值减小
         private void close() {
             // attempt to close once atomically
             if (closed.compareAndSet(false, true) == false) {

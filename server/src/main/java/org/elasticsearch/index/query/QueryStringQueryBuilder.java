@@ -839,7 +839,7 @@ public class QueryStringQueryBuilder extends AbstractQueryBuilder<QueryStringQue
 
         QueryStringQueryParser queryParser;
         boolean isLenient = lenient == null ? context.queryStringLenient() : lenient;
-        if (defaultField != null) {
+        if (defaultField != null) { // 默认为空
             if (Regex.isMatchAllPattern(defaultField)) {
                 queryParser = new QueryStringQueryParser(context, lenient == null ? true : lenient);
             } else {
@@ -853,9 +853,9 @@ public class QueryStringQueryBuilder extends AbstractQueryBuilder<QueryStringQue
                 queryParser = new QueryStringQueryParser(context, resolvedFields, isLenient);
             }
         } else {
-            List<String> defaultFields = context.defaultFields();
-            if (QueryParserHelper.hasAllFieldsWildcard(defaultFields)) {
-                queryParser = new QueryStringQueryParser(context, lenient == null ? true : lenient);
+            List<String> defaultFields = context.defaultFields(); // 默认为*
+            if (QueryParserHelper.hasAllFieldsWildcard(defaultFields)) { // 进来了
+                queryParser = new QueryStringQueryParser(context, lenient == null ? true : lenient); // 这里会找出所有可能的字段，尝试在所有字段里面模糊搜索
             } else {
                 final Map<String, Float> resolvedFields = QueryParserHelper.resolveMappingFields(context,
                     QueryParserHelper.parseFieldsAndWeights(defaultFields));

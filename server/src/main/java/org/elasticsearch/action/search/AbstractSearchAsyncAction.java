@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-/**
+/**  // encapsulates: 封装
  * This is an abstract base class that encapsulates the logic to fan out to all shards in provided {@link GroupShardsIterator}
  * and collect the results. If a shard request returns a failure this class handles the advance to the next replica of the shard until
  * the shards replica iterator is exhausted. Each shard is referenced by position in the {@link GroupShardsIterator} which is later
@@ -91,8 +91,8 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     private final int expectedTotalOps;
     private final AtomicInteger totalOps = new AtomicInteger();
     private final int maxConcurrentRequestsPerNode;
-    private final Map<String, PendingExecutions> pendingExecutionsPerNode = new ConcurrentHashMap<>();
-    private final boolean throttleConcurrentRequests;
+    private final Map<String, PendingExecutions> pendingExecutionsPerNode = new ConcurrentHashMap<>();  // key是nodeId
+    private final boolean throttleConcurrentRequests;  // 查询时是否限流
 
     AbstractSearchAsyncAction(String name, Logger logger, SearchTransportService searchTransportService,
                                         BiFunction<String, String, Transport.Connection> nodeIdToConnection,
@@ -106,7 +106,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         super(name);
         final List<SearchShardIterator> toSkipIterators = new ArrayList<>();
         final List<SearchShardIterator> iterators = new ArrayList<>();
-        for (final SearchShardIterator iterator : shardsIts) {
+        for (final SearchShardIterator iterator : shardsIts) { // 需要查询的shardId列表
             if (iterator.skip()) {
                 toSkipIterators.add(iterator);
             } else {
@@ -119,10 +119,10 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         // it's number of active shards but use 1 as the default if no replica of a shard is active at this point.
         // on a per shards level we use shardIt.remaining() to increment the totalOps pointer but add 1 for the current shard result
         // we process hence we add one for the non active partition here.
-        this.expectedTotalOps = shardsIts.totalSizeWith1ForEmpty();
+        this.expectedTotalOps = shardsIts.totalSizeWith1ForEmpty(); // 总共可以查询的分片，一个shardId有副本的话，则*1。若没有活跃的主分片，那么认为1
         this.maxConcurrentRequestsPerNode = maxConcurrentRequestsPerNode;
         // in the case were we have less shards than maxConcurrentRequestsPerNode we don't need to throttle
-        this.throttleConcurrentRequests = maxConcurrentRequestsPerNode < shardsIts.size();
+        this.throttleConcurrentRequests = maxConcurrentRequestsPerNode < shardsIts.size(); //
         this.timeProvider = timeProvider;
         this.logger = logger;
         this.searchTransportService = searchTransportService;
@@ -150,7 +150,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
      * This is the main entry point for a search. This method starts the search execution of the initial phase.
      */
     public final void start() {
-        if (getNumShards() == 0) {
+        if (getNumShards() == 0) { // 若没有shardNum符合条件，那么直接返回
             //no search shards to search on, bail with empty response
             //(it happens with search across _all with no indices around and consistent with broadcast operations)
             int trackTotalHitsUpTo = request.source() == null ? SearchContext.DEFAULT_TRACK_TOTAL_HITS_UP_TO :
@@ -192,7 +192,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
                     throw new SearchPhaseExecutionException(getName(), msg, null, ShardSearchFailure.EMPTY_ARRAY);
                 }
             }
-            for (int index = 0; index < shardsIts.size(); index++) {
+            for (int index = 0; index < shardsIts.size(); index++) {  // 循环每个shardId
                 final SearchShardIterator shardRoutings = shardsIts.get(index);
                 assert shardRoutings.skip() == false;
                 performPhaseOnShard(index, shardRoutings, shardRoutings.nextOrNull());
@@ -206,7 +206,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         assert iterator.skip();
         successfulShardExecution(iterator);
     }
-
+    // 还在协调节点上
     private void performPhaseOnShard(final int shardIndex, final SearchShardIterator shardIt, final ShardRouting shard) {
         /*
          * We capture the thread that this phase is starting on. When we are called back after executing the phase, we are either on the
@@ -220,7 +220,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         } else {
             final PendingExecutions pendingExecutions = throttleConcurrentRequests ?
                 pendingExecutionsPerNode.computeIfAbsent(shard.currentNodeId(), n -> new PendingExecutions(maxConcurrentRequestsPerNode))
-                : null;
+                : null; //computeIfAbsent和put功能一样，只是若不存在，会计算再放入。put会强制覆盖
             Runnable r = () -> {
                 final Thread thread = Thread.currentThread();
                 try {
@@ -615,10 +615,10 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
             assert runnable == null;
         }
     }
-
+    // 为了控制每个节点上最多执行的分片个数
     private static final class PendingExecutions {
-        private final int permits;
-        private int permitsTaken = 0;
+        private final int permits; // 最多允许一个节点执行几个分片
+        private int permitsTaken = 0; // 目前已经允许执行的task
         private ArrayDeque<Runnable> queue = new ArrayDeque<>();
 
         PendingExecutions(int permits) {
@@ -628,7 +628,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
 
         void finishAndRunNext() {
             synchronized (this) {
-                permitsTaken--;
+                permitsTaken--;  // 颁发的token-1
                 assert permitsTaken >= 0 : "illegal taken permits: " + permitsTaken;
             }
             tryRun(null);
@@ -652,7 +652,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
                 if (toExecute == null) {
                     permitsTaken--;
                 }
-            } else if (runnable != null) {
+            } else if (runnable != null) { // 若满了，就得向queue中存放当前shard
                 queue.add(runnable);
             }
             return toExecute;

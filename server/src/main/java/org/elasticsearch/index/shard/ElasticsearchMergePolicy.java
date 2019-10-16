@@ -43,7 +43,7 @@ import java.util.Map;
  * <p>
  * For now, this {@link MergePolicy} takes care of moving versions that used to
  * be stored as payloads to numeric doc values.
- */
+ */ //
 public final class ElasticsearchMergePolicy extends FilterMergePolicy {
 
     private static final Logger logger = LogManager.getLogger(ElasticsearchMergePolicy.class);

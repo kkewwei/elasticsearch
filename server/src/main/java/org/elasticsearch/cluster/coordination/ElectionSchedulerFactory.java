@@ -48,10 +48,10 @@ public class ElectionSchedulerFactory {
 
     private static final Logger logger = LogManager.getLogger(ElectionSchedulerFactory.class);
 
-    private static final String ELECTION_INITIAL_TIMEOUT_SETTING_KEY = "cluster.election.initial_timeout";
-    private static final String ELECTION_BACK_OFF_TIME_SETTING_KEY = "cluster.election.back_off_time";
-    private static final String ELECTION_MAX_TIMEOUT_SETTING_KEY = "cluster.election.max_timeout";
-    private static final String ELECTION_DURATION_SETTING_KEY = "cluster.election.duration";
+    private static final String ELECTION_INITIAL_TIMEOUT_SETTING_KEY = "cluster.election.initial_timeout"; // 默认100ms， 最小1ms, 最大10s
+    private static final String ELECTION_BACK_OFF_TIME_SETTING_KEY = "cluster.election.back_off_time"; // 默认100ms， 最小1ms, 最大60s
+    private static final String ELECTION_MAX_TIMEOUT_SETTING_KEY = "cluster.election.max_timeout";// 默认10s， 最小200ms, 最大300s
+    private static final String ELECTION_DURATION_SETTING_KEY = "cluster.election.duration";// 默认500ms， 最小1ms, 最大300s
 
     /*
      * The first election is scheduled to occur a random number of milliseconds after the scheduler is started, where the random number of
@@ -67,22 +67,22 @@ public class ElectionSchedulerFactory {
      * Each election lasts up to ELECTION_DURATION_SETTING.
      */
 
-    public static final Setting<TimeValue> ELECTION_INITIAL_TIMEOUT_SETTING = Setting.timeSetting(ELECTION_INITIAL_TIMEOUT_SETTING_KEY,
+    public static final Setting<TimeValue> ELECTION_INITIAL_TIMEOUT_SETTING = Setting.timeSetting(ELECTION_INITIAL_TIMEOUT_SETTING_KEY,// 默认100ms,最小1ms,最大10s
         TimeValue.timeValueMillis(100), TimeValue.timeValueMillis(1), TimeValue.timeValueSeconds(10), Property.NodeScope);
 
-    public static final Setting<TimeValue> ELECTION_BACK_OFF_TIME_SETTING = Setting.timeSetting(ELECTION_BACK_OFF_TIME_SETTING_KEY,
+    public static final Setting<TimeValue> ELECTION_BACK_OFF_TIME_SETTING = Setting.timeSetting(ELECTION_BACK_OFF_TIME_SETTING_KEY,// 默认100ms,最小1ms,最大60s
         TimeValue.timeValueMillis(100), TimeValue.timeValueMillis(1), TimeValue.timeValueSeconds(60), Property.NodeScope);
 
-    public static final Setting<TimeValue> ELECTION_MAX_TIMEOUT_SETTING = Setting.timeSetting(ELECTION_MAX_TIMEOUT_SETTING_KEY,
+    public static final Setting<TimeValue> ELECTION_MAX_TIMEOUT_SETTING = Setting.timeSetting(ELECTION_MAX_TIMEOUT_SETTING_KEY, // 默认10s,最小200ms,最大300s
         TimeValue.timeValueSeconds(10), TimeValue.timeValueMillis(200), TimeValue.timeValueSeconds(300), Property.NodeScope);
 
-    public static final Setting<TimeValue> ELECTION_DURATION_SETTING = Setting.timeSetting(ELECTION_DURATION_SETTING_KEY,
+    public static final Setting<TimeValue> ELECTION_DURATION_SETTING = Setting.timeSetting(ELECTION_DURATION_SETTING_KEY,// 默认500ms,最小1ms,最大300s
         TimeValue.timeValueMillis(500), TimeValue.timeValueMillis(1), TimeValue.timeValueSeconds(300), Property.NodeScope);
 
-    private final TimeValue initialTimeout;
-    private final TimeValue backoffTime;
-    private final TimeValue maxTimeout;
-    private final TimeValue duration;
+    private final TimeValue initialTimeout; // 默认100ms， 最小1ms, 最大10s
+    private final TimeValue backoffTime; // 默认100ms， 最小1ms, 最大60s
+    private final TimeValue maxTimeout;// 默认10s， 最小200ms, 最大300s
+    private final TimeValue duration;// 默认500ms， 最小1ms, 最大300s
     private final ThreadPool threadPool;
     private final Random random;
 
@@ -106,10 +106,10 @@ public class ElectionSchedulerFactory {
      *
      * @param gracePeriod       An initial period to wait before attempting the first election.
      * @param scheduledRunnable The action to run each time an election should be attempted.
-     */
+     */  // coordinator节点有资格选举master之后，就开始周期选举
     public Releasable startElectionScheduler(TimeValue gracePeriod, Runnable scheduledRunnable) {
         final ElectionScheduler scheduler = new ElectionScheduler();
-        scheduler.scheduleNextElection(gracePeriod, scheduledRunnable);
+        scheduler.scheduleNextElection(gracePeriod, scheduledRunnable); //
         return scheduler;
     }
 
@@ -147,10 +147,10 @@ public class ElectionSchedulerFactory {
                 logger.debug("{} not scheduling election", this);
                 return;
             }
-
-            final long thisAttempt = attempt.getAndIncrement();
+            // 发现master采用后退算法
+            final long thisAttempt = attempt.getAndIncrement();  //推迟时间= 尝试次数*100ms
             // to overflow here would take over a million years of failed election attempts, so we won't worry about that:
-            final long maxDelayMillis = Math.min(maxTimeout.millis(), initialTimeout.millis() + thisAttempt * backoffTime.millis());
+            final long maxDelayMillis = Math.min(maxTimeout.millis(), initialTimeout.millis() + thisAttempt * backoffTime.millis()); //
             final long delayMillis = toPositiveLongAtMost(random.nextLong(), maxDelayMillis) + gracePeriod.millis();
             final Runnable runnable = new AbstractRunnable() {
                 @Override

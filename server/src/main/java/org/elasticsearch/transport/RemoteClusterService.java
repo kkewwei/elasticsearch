@@ -62,7 +62,7 @@ import static org.elasticsearch.common.settings.Setting.timeSetting;
 
 /**
  * Basic service for accessing remote clusters via gateway nodes
- */
+ */  // 与别的集群通信的一个基础类
 public final class RemoteClusterService extends RemoteClusterAware implements Closeable {
 
     private static final Logger logger = LogManager.getLogger(RemoteClusterService.class);
@@ -230,7 +230,7 @@ public final class RemoteClusterService extends RemoteClusterAware implements Cl
     /**
      * Returns <code>true</code> if at least one remote cluster is configured
      */
-    public boolean isCrossClusterSearchEnabled() {
+    public boolean isCrossClusterSearchEnabled() { // 配置了跨集群名称，才能真正进行跨级群访问
         return remoteClusters.isEmpty() == false;
     }
 
@@ -240,7 +240,7 @@ public final class RemoteClusterService extends RemoteClusterAware implements Cl
 
     public Map<String, OriginalIndices> groupIndices(IndicesOptions indicesOptions, String[] indices) {
         Map<String, OriginalIndices> originalIndicesMap = new HashMap<>();
-        if (isCrossClusterSearchEnabled()) {
+        if (isCrossClusterSearchEnabled()) { //是否支持跨级群访问，没有配置远程集群，就不支持
             final Map<String, List<String>> groupedIndices = groupClusterIndices(getRemoteClusterNames(), indices);
             if (groupedIndices.isEmpty()) {
                 //search on _all in the local cluster if neither local indices nor remote indices were specified

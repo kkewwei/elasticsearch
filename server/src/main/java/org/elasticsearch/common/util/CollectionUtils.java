@@ -66,7 +66,7 @@ public class CollectionUtils {
             return list;
         }
 
-        int d = distance % list.size();
+        int d = distance % list.size();  // 隔着取数
         if (d < 0) {
             d += list.size();
         }
@@ -199,7 +199,7 @@ public class CollectionUtils {
         }
 
         @Override
-        public T get(int index) {
+        public T get(int index) { // 主要这个函数
             int idx = distance + index;
             if (idx < 0 || idx >= in.size()) {
                 idx -= in.size();

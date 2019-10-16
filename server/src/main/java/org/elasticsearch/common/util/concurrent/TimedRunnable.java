@@ -34,16 +34,16 @@ class TimedRunnable extends AbstractRunnable implements WrappedRunnable {
 
     TimedRunnable(final Runnable original) {
         this.original = original;
-        this.creationTimeNanos = System.nanoTime();
+        this.creationTimeNanos = System.nanoTime(); // 创建时间
     }
 
     @Override
     public void doRun() {
         try {
-            startTimeNanos = System.nanoTime();
+            startTimeNanos = System.nanoTime(); // 开始时间
             original.run();
         } finally {
-            finishTimeNanos = System.nanoTime();
+            finishTimeNanos = System.nanoTime(); // 执行完成时间
         }
     }
 

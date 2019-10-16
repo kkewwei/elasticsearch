@@ -37,6 +37,6 @@ public interface Discovery extends LifecycleComponent, ClusterStatePublisher {
     /**
      * Triggers the first join cycle
      */
-    void startInitialJoin();
+    void startInitialJoin();  // 这是加入集群的起始位置
 
 }

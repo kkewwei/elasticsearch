@@ -86,8 +86,8 @@ public class GatewayMetaState {
 
         final Tuple<Manifest, ClusterState> manifestClusterStateTuple;
         try {
-            upgradeMetaData(settings, metaStateService, metaDataIndexUpgradeService, metaDataUpgrader);
-            manifestClusterStateTuple = loadStateAndManifest(ClusterName.CLUSTER_NAME_SETTING.get(settings), metaStateService);
+            upgradeMetaData(settings, metaStateService, metaDataIndexUpgradeService, metaDataUpgrader); // 从本地加载metadata
+            manifestClusterStateTuple = loadStateAndManifest(ClusterName.CLUSTER_NAME_SETTING.get(settings), metaStateService); //
         } catch (IOException e) {
             throw new ElasticsearchException("failed to load metadata", e);
         }
@@ -95,9 +95,9 @@ public class GatewayMetaState {
         final IncrementalClusterStateWriter incrementalClusterStateWriter
             = new IncrementalClusterStateWriter(settings, clusterService.getClusterSettings(), metaStateService,
                 manifestClusterStateTuple.v1(),
-                prepareInitialClusterState(transportService, clusterService, manifestClusterStateTuple.v2()),
+                prepareInitialClusterState(transportService, clusterService, manifestClusterStateTuple.v2()), // 初始化一个过去的ClusterState
                 transportService.getThreadPool()::relativeTimeInMillis);
-        if (DiscoveryNode.isMasterNode(settings) == false) {
+        if (DiscoveryNode.isMasterNode(settings) == false) { // 若本节点没有master属性
             if (DiscoveryNode.isDataNode(settings)) {
                 // Master-eligible nodes persist index metadata for all indices regardless of whether they hold any shards or not. It's
                 // vitally important to the safety of the cluster coordination system that master-eligible nodes persist this metadata when
@@ -120,7 +120,7 @@ public class GatewayMetaState {
             // configuration, so it's ok if they have a stale or incomplete cluster state when restarted. We track the latest cluster state
             // in memory instead.
             persistedState.set(new InMemoryPersistedState(manifestClusterStateTuple.v1().getCurrentTerm(), manifestClusterStateTuple.v2()));
-        } else {
+        } else { // 本节点有master节点属性
             // Master-ineligible nodes must persist the cluster state when accepting it because they must reload the (complete, fresh)
             // last-accepted cluster state when restarted.
             persistedState.set(new GatewayPersistedState(incrementalClusterStateWriter));
@@ -133,7 +133,7 @@ public class GatewayMetaState {
         assert transportService.getLocalNode() != null : "transport service is not yet started";
         return Function.<ClusterState>identity()
             .andThen(ClusterStateUpdaters::addStateNotRecoveredBlock)
-            .andThen(state -> ClusterStateUpdaters.setLocalNode(state, transportService.getLocalNode()))
+            .andThen(state -> ClusterStateUpdaters.setLocalNode(state, transportService.getLocalNode())) // 设置了nodes中的本节点，以及设置local节点
             .andThen(state -> ClusterStateUpdaters.upgradeAndArchiveUnknownOrInvalidSettings(state, clusterService.getClusterSettings()))
             .andThen(ClusterStateUpdaters::recoverClusterBlocks)
             .apply(clusterState);
@@ -142,7 +142,7 @@ public class GatewayMetaState {
     // exposed so it can be overridden by tests
     void upgradeMetaData(Settings settings, MetaStateService metaStateService, MetaDataIndexUpgradeService metaDataIndexUpgradeService,
                          MetaDataUpgrader metaDataUpgrader) throws IOException {
-        if (isMasterOrDataNode(settings)) {
+        if (isMasterOrDataNode(settings)) { // 数据节点或者master节点
             try {
                 final Tuple<Manifest, MetaData> metaStateAndData = metaStateService.loadFullState();
                 final Manifest manifest = metaStateAndData.v1();
@@ -187,12 +187,12 @@ public class GatewayMetaState {
     private static Tuple<Manifest,ClusterState> loadStateAndManifest(ClusterName clusterName,
                                                                      MetaStateService metaStateService) throws IOException {
         final long startNS = System.nanoTime();
-        final Tuple<Manifest, MetaData> manifestAndMetaData = metaStateService.loadFullState();
+        final Tuple<Manifest, MetaData> manifestAndMetaData = metaStateService.loadFullState(); //manifest-6197.st及global-320.st读取元数据
         final Manifest manifest = manifestAndMetaData.v1();
 
         final ClusterState clusterState = ClusterState.builder(clusterName)
-            .version(manifest.getClusterStateVersion())
-            .metaData(manifestAndMetaData.v2()).build();
+            .version(manifest.getClusterStateVersion()) // 可以看到，加载出来的只有metaData ，并没有上次的节点情况
+            .metaData(manifestAndMetaData.v2()).build(); // 仅仅会要metaData, RoutingTable都没要
 
         logger.debug("took {} to load state", TimeValue.timeValueMillis(TimeValue.nsecToMSec(System.nanoTime() - startNS)));
 
@@ -306,7 +306,7 @@ public class GatewayMetaState {
         }
 
         @Override
-        public void setCurrentTerm(long currentTerm) {
+        public void setCurrentTerm(long currentTerm) { // 就是持久化
             try {
                 incrementalClusterStateWriter.setCurrentTerm(currentTerm);
             } catch (WriteStateException e) {
@@ -316,7 +316,7 @@ public class GatewayMetaState {
         }
 
         @Override
-        public void setLastAcceptedState(ClusterState clusterState) {
+        public void setLastAcceptedState(ClusterState clusterState) {// 就是持久化
             try {
                 final ClusterState previousClusterState = incrementalClusterStateWriter.getPreviousClusterState();
                 incrementalClusterStateWriter.setIncrementalWrite(previousClusterState.term() == clusterState.term());

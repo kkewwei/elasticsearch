@@ -44,7 +44,7 @@ import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.new
  * eventually either to apply the published state (or a later state) or be removed from the cluster. This component achieves this by
  * removing any lagging nodes from the cluster after a timeout.
  */
-public class LagDetector {
+public class LagDetector { //
 
     private static final Logger logger = LogManager.getLogger(LagDetector.class);
 
@@ -57,7 +57,7 @@ public class LagDetector {
     private final Consumer<DiscoveryNode> onLagDetected;
     private final Supplier<DiscoveryNode> localNodeSupplier;
     private final ThreadPool threadPool;
-    private final Map<DiscoveryNode, NodeAppliedStateTracker> appliedStateTrackersByNode = newConcurrentMap();
+    private final Map<DiscoveryNode, NodeAppliedStateTracker> appliedStateTrackersByNode = newConcurrentMap();  // 放的是本轮准备跟踪滞后的节点
 
     public LagDetector(final Settings settings, final ThreadPool threadPool, final Consumer<DiscoveryNode> onLagDetected,
                        final Supplier<DiscoveryNode> localNodeSupplier) {
@@ -70,8 +70,8 @@ public class LagDetector {
     public void setTrackedNodes(final Iterable<DiscoveryNode> discoveryNodes) {
         final Set<DiscoveryNode> discoveryNodeSet = new HashSet<>();
         discoveryNodes.forEach(discoveryNodeSet::add);
-        discoveryNodeSet.remove(localNodeSupplier.get());
-        appliedStateTrackersByNode.keySet().retainAll(discoveryNodeSet);
+        discoveryNodeSet.remove(localNodeSupplier.get()); // 将本节点删掉
+        appliedStateTrackersByNode.keySet().retainAll(discoveryNodeSet); // 需要监听的节点列表
         discoveryNodeSet.forEach(node -> appliedStateTrackersByNode.putIfAbsent(node, new NodeAppliedStateTracker(node)));
     }
 
@@ -124,7 +124,7 @@ public class LagDetector {
     Set<DiscoveryNode> getTrackedNodes() {
         return Collections.unmodifiableSet(appliedStateTrackersByNode.keySet());
     }
-
+    // 每个节点都建立一个跟踪器
     private class NodeAppliedStateTracker {
         private final DiscoveryNode discoveryNode;
         private final AtomicLong appliedVersion = new AtomicLong();

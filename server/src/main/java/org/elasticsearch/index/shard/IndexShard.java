@@ -3066,7 +3066,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                  * Additionally, a flush implicitly executes a translog generation roll so if we execute a flush then we do not need to
                  * check if we should roll the translog generation.
                  */
-                if (shouldPeriodicallyFlush()) {
+                if (shouldPeriodicallyFlush()) { // 是否需要周期新刷新
                     logger.debug("submitting async flush request");
                     final AbstractRunnable flush = new AbstractRunnable() {
                         @Override
@@ -3181,7 +3181,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 if (logger.isTraceEnabled()) {
                     logger.trace("refresh with source [schedule]");
                 }
-                return getEngine().maybeRefresh("schedule");
+                return getEngine().maybeRefresh("schedule"); // 周期性refresh可能会触发merge操作
             }
         }
         final Engine engine = getEngine();

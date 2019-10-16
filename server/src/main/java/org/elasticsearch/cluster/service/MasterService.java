@@ -79,7 +79,7 @@ public class MasterService extends AbstractLifecycleComponent {
 
     static final String MASTER_UPDATE_THREAD_NAME = "masterService#updateTask";
 
-    ClusterStatePublisher clusterStatePublisher;
+    ClusterStatePublisher clusterStatePublisher;    // Coordinator
 
     private final String nodeName;
 
@@ -106,7 +106,7 @@ public class MasterService extends AbstractLifecycleComponent {
     }
 
     public synchronized void setClusterStatePublisher(ClusterStatePublisher publisher) {
-        clusterStatePublisher = publisher;
+        clusterStatePublisher = publisher;  // Coordinator
     }
 
     public synchronized void setClusterStateSupplier(java.util.function.Supplier<ClusterState> clusterStateSupplier) {
@@ -156,7 +156,7 @@ public class MasterService extends AbstractLifecycleComponent {
 
             UpdateTask(Priority priority, String source, Object task, ClusterStateTaskListener listener,
                        ClusterStateTaskExecutor<?> executor) {
-                super(priority, source, executor, task);
+                super(priority, source, executor, task);//executor： 真正处理这个task要做的事，
                 this.listener = listener;
             }
 
@@ -211,7 +211,7 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         final long computationStartTime = threadPool.relativeTimeInMillis();
-        final TaskOutputs taskOutputs = calculateTaskOutputs(taskInputs, previousClusterState);
+        final TaskOutputs taskOutputs = calculateTaskOutputs(taskInputs, previousClusterState); // 去计算
         taskOutputs.notifyFailedTasks();
         final TimeValue computationTime = getTimeSince(computationStartTime);
         logExecutionTime(computationTime, "compute cluster state update", summary);
@@ -242,7 +242,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 }
 
                 logger.debug("publishing cluster state version [{}]", newClusterState.version());
-                publish(clusterChangedEvent, taskOutputs, publicationStartTime);
+                publish(clusterChangedEvent, taskOutputs, publicationStartTime);   // 这里回去进行真正广播
             } catch (Exception e) {
                 handleException(summary, publicationStartTime, newClusterState, e);
             }
@@ -264,8 +264,8 @@ public class MasterService extends AbstractLifecycleComponent {
 
         // indefinitely wait for publication to complete
         try {
-            FutureUtils.get(fut);
-            onPublicationSuccess(clusterChangedEvent, taskOutputs);
+            FutureUtils.get(fut); // 等待完成
+            onPublicationSuccess(clusterChangedEvent, taskOutputs); // publish成功后可以回调一些函数
         } catch (Exception e) {
             onPublicationFailed(clusterChangedEvent, taskOutputs, startTimeMillis, e);
         }
@@ -316,7 +316,7 @@ public class MasterService extends AbstractLifecycleComponent {
     }
 
     private TaskOutputs calculateTaskOutputs(TaskInputs taskInputs, ClusterState previousClusterState) {
-        ClusterTasksResult<Object> clusterTasksResult = executeTasks(taskInputs, previousClusterState);
+        ClusterTasksResult<Object> clusterTasksResult = executeTasks(taskInputs, previousClusterState); // 执行task
         ClusterState newClusterState = patchVersions(previousClusterState, clusterTasksResult);
         return new TaskOutputs(taskInputs, previousClusterState, newClusterState, getNonFailedTasks(taskInputs, clusterTasksResult),
             clusterTasksResult.executionResults);
@@ -385,7 +385,7 @@ public class MasterService extends AbstractLifecycleComponent {
                                           ClusterStateTaskExecutor<T> executor,
                                           ClusterStateTaskListener listener) {
         submitStateUpdateTasks(source, Collections.singletonMap(task, listener), config, executor);
-    }
+    }  // node-join
 
     /**
      * Output created by executing a set of tasks provided as TaskInputs
@@ -694,7 +694,7 @@ public class MasterService extends AbstractLifecycleComponent {
         ClusterTasksResult<Object> clusterTasksResult;
         try {
             List<Object> inputs = taskInputs.updateTasks.stream().map(tUpdateTask -> tUpdateTask.task).collect(Collectors.toList());
-            clusterTasksResult = taskInputs.executor.execute(previousClusterState, inputs);
+            clusterTasksResult = taskInputs.executor.execute(previousClusterState, inputs); // 去真正执行每个task
             if (previousClusterState != clusterTasksResult.resultingState &&
                 previousClusterState.nodes().isLocalNodeElectedMaster() &&
                 (clusterTasksResult.resultingState.nodes().isLocalNodeElectedMaster() == false)) {
@@ -775,7 +775,7 @@ public class MasterService extends AbstractLifecycleComponent {
      *                 batches on this executor
      * @param <T>      the type of the cluster state update task state
      *
-     */
+     */   // node-join, create index。node-join最开始调用的是ClusterService.submitStateUpdateTasks
     public <T> void submitStateUpdateTasks(final String source,
                                            final Map<T, ClusterStateTaskListener> tasks, final ClusterStateTaskConfig config,
                                            final ClusterStateTaskExecutor<T> executor) {

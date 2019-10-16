@@ -142,7 +142,7 @@ public class InternalEngine extends Engine {
 
     private volatile SegmentInfos lastCommittedSegmentInfos;
 
-    private final IndexThrottle throttle;
+    private final IndexThrottle throttle; // 写入限速
 
     private final LocalCheckpointTracker localCheckpointTracker;
 
@@ -150,7 +150,7 @@ public class InternalEngine extends Engine {
 
     // How many callers are currently requesting index throttling.  Currently there are only two situations where we do this: when merges
     // are falling behind and when writing indexing buffer to disk is too slow.  When this is 0, there is no throttling, else we throttling
-    // incoming indexing ops to a single thread:
+    // incoming indexing ops to a single thread: 有不止一方在调用限流请求，比如段合并过多+写入磁盘过慢，这里统计几方申请调用限速
     private final AtomicInteger throttleRequestCount = new AtomicInteger();
     private final AtomicBoolean pendingTranslogRecovery = new AtomicBoolean(false);
     private final AtomicLong maxUnsafeAutoIdTimestamp = new AtomicLong(-1);
@@ -333,7 +333,7 @@ public class InternalEngine extends Engine {
             // we simply run a blocking refresh on the internal reference manager and then steal it's reader
             // it's a save operation since we acquire the reader which incs it's reference but then down the road
             // steal it by calling incRef on the "stolen" reader
-            internalReaderManager.maybeRefreshBlocking();
+            internalReaderManager.maybeRefreshBlocking(); // 会触发merge操作
             ElasticsearchDirectoryReader acquire = internalReaderManager.acquire();
             try {
                 if (acquire == referenceToRefresh) {
@@ -1558,7 +1558,7 @@ public class InternalEngine extends Engine {
 
     @Override
     public boolean maybeRefresh(String source) throws EngineException {
-        return refresh(source, SearcherScope.EXTERNAL, false);
+        return refresh(source, SearcherScope.EXTERNAL, false); // 周期性refresh可能会触发merge操作
     }
 
     final boolean refresh(String source, SearcherScope scope, boolean block) throws EngineException {
@@ -1581,7 +1581,7 @@ public class InternalEngine extends Engine {
                         referenceManager.maybeRefreshBlocking();
                         refreshed = true;
                     } else {
-                        refreshed = referenceManager.maybeRefresh();
+                        refreshed = referenceManager.maybeRefresh();  // 会触发merge操作
                     }
                 } finally {
                     store.decRef();
@@ -1684,7 +1684,7 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public boolean shouldPeriodicallyFlush() {
+    public boolean shouldPeriodicallyFlush() { // 是否需要flush
         ensureOpen();
         if (shouldPeriodicallyFlushAfterBigMerge.get()) {
             return true;
@@ -2185,7 +2185,7 @@ public class InternalEngine extends Engine {
         if (Assertions.ENABLED) {
             return new AssertingIndexWriter(directory, iwc);
         } else {
-            return new IndexWriter(directory, iwc);
+            return new IndexWriter(directory, iwc); // 会跑到这里
         }
     }
 
@@ -2225,7 +2225,7 @@ public class InternalEngine extends Engine {
         }
         iwc.setMergePolicy(new ElasticsearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
-        iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
+        iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac()); // 设置lucene全盘刷新的上线：indices.memory.index_buffer_size，默认10%
         iwc.setCodec(engineConfig.getCodec());
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh
         if (config().getIndexSort() != null) {
@@ -2261,10 +2261,10 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public void activateThrottling() {
+    public void activateThrottling() { //
         int count = throttleRequestCount.incrementAndGet();
         assert count >= 1 : "invalid post-increment throttleRequestCount=" + count;
-        if (count == 1) {
+        if (count == 1) { // 只要有一方申请限速，那么就限速
             throttle.activate();
         }
     }
@@ -2297,7 +2297,7 @@ public class InternalEngine extends Engine {
     }
 
     private final class EngineMergeScheduler extends ElasticsearchConcurrentMergeScheduler {
-        private final AtomicInteger numMergesInFlight = new AtomicInteger(0);
+        private final AtomicInteger numMergesInFlight = new AtomicInteger(0); // 正在处于合并的merge
         private final AtomicBoolean isThrottling = new AtomicBoolean();
 
         EngineMergeScheduler(ShardId shardId, IndexSettings indexSettings) {
@@ -2307,8 +2307,8 @@ public class InternalEngine extends Engine {
         @Override
         public synchronized void beforeMerge(OnGoingMerge merge) {
             int maxNumMerges = mergeScheduler.getMaxMergeCount();
-            if (numMergesInFlight.incrementAndGet() > maxNumMerges) {
-                if (isThrottling.getAndSet(true) == false) {
+            if (numMergesInFlight.incrementAndGet() > maxNumMerges) { // 超过设置的段个数
+                if (isThrottling.getAndSet(true) == false) { // 第一次调用才进来
                     logger.info("now throttling indexing: numMergesInFlight={}, maxNumMerges={}", numMergesInFlight, maxNumMerges);
                     activateThrottling();
                 }

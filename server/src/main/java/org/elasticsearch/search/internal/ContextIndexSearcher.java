@@ -70,7 +70,7 @@ public class ContextIndexSearcher extends IndexSearcher {
 
     private AggregatedDfs aggregatedDfs;
     private QueryProfiler profiler;
-    private Runnable checkCancelled;
+    private Runnable checkCancelled;  // 默认是task取消功能
 
     public ContextIndexSearcher(IndexReader reader, Similarity similarity, QueryCache queryCache, QueryCachingPolicy queryCachingPolicy) {
         super(reader);

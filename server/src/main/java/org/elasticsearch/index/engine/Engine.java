@@ -828,8 +828,8 @@ public abstract class Engine implements Closeable {
 
     protected void fillSegmentStats(SegmentReader segmentReader, boolean includeSegmentFileSizes, SegmentsStats stats) {
         stats.add(1, segmentReader.ramBytesUsed());
-        stats.addTermsMemoryInBytes(guardedRamBytesUsed(segmentReader.getPostingsReader()));
-        stats.addStoredFieldsMemoryInBytes(guardedRamBytesUsed(segmentReader.getFieldsReader()));
+        stats.addTermsMemoryInBytes(guardedRamBytesUsed(segmentReader.getPostingsReader())); // 读取的doc
+        stats.addStoredFieldsMemoryInBytes(guardedRamBytesUsed(segmentReader.getFieldsReader())); // CompressingStoredFieldsReader
         stats.addTermVectorsMemoryInBytes(guardedRamBytesUsed(segmentReader.getTermVectorsReader()));
         stats.addNormsMemoryInBytes(guardedRamBytesUsed(segmentReader.getNormsReader()));
         stats.addPointsMemoryInBytes(guardedRamBytesUsed(segmentReader.getPointsReader()));

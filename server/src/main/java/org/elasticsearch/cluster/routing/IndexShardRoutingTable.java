@@ -48,14 +48,14 @@ import java.util.Set;
  * a disjoint set of the index data and each shard has one or more instances
  * referred to as replicas of a shard. Given that, this class encapsulates all
  * replicas (instances) for a single index shard.
- */
+ */ // 代表着一个shardId, 主副本都是在这里放的
 public class IndexShardRoutingTable implements Iterable<ShardRouting> {
 
     final ShardShuffler shuffler;
-    final ShardId shardId;
+    final ShardId shardId; // 代表着一个shardId,
 
     final ShardRouting primary;
-    final List<ShardRouting> primaryAsList;
+    final List<ShardRouting> primaryAsList;  //
     final List<ShardRouting> replicas;
     final List<ShardRouting> shards;
     final List<ShardRouting> activeShards;
@@ -71,7 +71,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
 
     IndexShardRoutingTable(ShardId shardId, List<ShardRouting> shards) {
         this.shardId = shardId;
-        this.shuffler = new RotationShardShuffler(Randomness.get().nextInt());
+        this.shuffler = new RotationShardShuffler(Randomness.get().nextInt()); // 轮训选择一个分片
         this.shards = Collections.unmodifiableList(shards);
 
         ShardRouting primary = null;
@@ -241,8 +241,8 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
      */
     public ShardIterator activeInitializingShardsIt(int seed) {
         if (allInitializingShards.isEmpty()) {
-            return new PlainShardIterator(shardId, shuffler.shuffle(activeShards, seed));
-        }
+            return new PlainShardIterator(shardId, shuffler.shuffle(activeShards, seed)); // 轮训选择
+        }  // 包括正在initial的分片也会被选择
         ArrayList<ShardRouting> ordered = new ArrayList<>(activeShards.size() + allInitializingShards.size());
         ordered.addAll(shuffler.shuffle(activeShards, seed));
         ordered.addAll(allInitializingShards);
@@ -256,8 +256,8 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
      */
     public ShardIterator activeInitializingShardsRankedIt(@Nullable ResponseCollectorService collector,
                                                           @Nullable Map<String, Long> nodeSearchCounts) {
-        final int seed = shuffler.nextSeed();
-        if (allInitializingShards.isEmpty()) {
+        final int seed = shuffler.nextSeed(); // 自增的一个seed
+        if (allInitializingShards.isEmpty()) { // 没有分片正在initial
             return new PlainShardIterator(shardId,
                     rankShardsAndUpdateStats(shuffler.shuffle(activeShards, seed), collector, nodeSearchCounts));
         }
@@ -295,7 +295,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         final Map<String, Double> nodeRanks = new HashMap<>(nodeStats.size());
         for (Map.Entry<String, Optional<ResponseCollectorService.ComputedNodeStats>> entry : nodeStats.entrySet()) {
             Optional<ResponseCollectorService.ComputedNodeStats> maybeStats = entry.getValue();
-            maybeStats.ifPresent(stats -> {
+            maybeStats.ifPresent(stats -> {  // ifPresent: 若maybeStats有值的话，则将maybeStats的值传递给这个consumer函数
                 final String nodeId = entry.getKey();
                 nodeRanks.put(nodeId, stats.rank(nodeSearchCounts.getOrDefault(nodeId, 1L)));
             });
@@ -313,16 +313,16 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
      * This adjustment takes the "winning" node's statistics and adds the average of those statistics with each non-winning node. Let's say
      * the winning node had a queue size of 10 and a non-winning node had a queue of 18. The average queue size is (10 + 18) / 2 = 14 so the
      * non-winning node will have statistics added for a queue size of 14. This is repeated for the response time and service times as well.
-     */
+     */  // 更新
     private static void adjustStats(final ResponseCollectorService collector,
                                     final Map<String, Optional<ResponseCollectorService.ComputedNodeStats>> nodeStats,
                                     final String minNodeId,
                                     final ResponseCollectorService.ComputedNodeStats minStats) {
         if (minNodeId != null) {
-            for (Map.Entry<String, Optional<ResponseCollectorService.ComputedNodeStats>> entry : nodeStats.entrySet()) {
-                final String nodeId = entry.getKey();
+            for (Map.Entry<String, Optional<ResponseCollectorService.ComputedNodeStats>> entry : nodeStats.entrySet()) { // 那么对每个nodes都重新调整
+                final String nodeId = entry.getKey(); // 调整的目的是为了防止高分的节点永远分配不到请求，这里平均下
                 final Optional<ResponseCollectorService.ComputedNodeStats> maybeStats = entry.getValue();
-                if (nodeId.equals(minNodeId) == false && maybeStats.isPresent()) {
+                if (nodeId.equals(minNodeId) == false && maybeStats.isPresent()) { // 如果不是得分最低的那个节点， 那么则平均得分
                     final ResponseCollectorService.ComputedNodeStats stats = maybeStats.get();
                     final int updatedQueue = (minStats.queueSize + stats.queueSize) / 2;
                     final long updatedResponse = (long) (minStats.responseTime + stats.responseTime) / 2;
@@ -344,27 +344,27 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         final Map<String, Optional<ResponseCollectorService.ComputedNodeStats>> nodeStats = getNodeStats(nodeIds, collector);
 
         // Retrieve all the nodes the shards exist on
-        final Map<String, Double> nodeRanks = rankNodes(nodeStats, nodeSearchCounts);
+        final Map<String, Double> nodeRanks = rankNodes(nodeStats, nodeSearchCounts); // 针对这一批shards涉及到的nodes, 每个nodes都算出一个分数来
 
         // sort all shards based on the shard rank
         ArrayList<ShardRouting> sortedShards = new ArrayList<>(shards);
-        Collections.sort(sortedShards, new NodeRankComparator(nodeRanks));
+        Collections.sort(sortedShards, new NodeRankComparator(nodeRanks));  // 从小向大排序
 
         // adjust the non-winner nodes' stats so they will get a chance to receive queries
         if (sortedShards.size() > 1) {
-            ShardRouting minShard = sortedShards.get(0);
+            ShardRouting minShard = sortedShards.get(0); //   得分最好的那个，性能最好的那个
             // If the winning shard is not started we are ranking initializing
             // shards, don't bother to do adjustments
             if (minShard.started()) {
                 String minNodeId = minShard.currentNodeId();
                 Optional<ResponseCollectorService.ComputedNodeStats> maybeMinStats = nodeStats.get(minNodeId);
-                if (maybeMinStats.isPresent()) {
-                    adjustStats(collector, nodeStats, minNodeId, maybeMinStats.get());
+                if (maybeMinStats.isPresent()) { // 若存在
+                    adjustStats(collector, nodeStats, minNodeId, maybeMinStats.get());  // 调整所有副本的得分
                     // Increase the number of searches for the "winning" node by one.
                     // Note that this doesn't actually affect the "real" counts, instead
                     // it only affects the captured node search counts, which is
                     // captured once for each query in TransportSearchAction
-                    nodeSearchCounts.compute(minNodeId, (id, conns) -> conns == null ? 1 : conns + 1);
+                    nodeSearchCounts.compute(minNodeId, (id, conns) -> conns == null ? 1 : conns + 1); // 就是把得分最低的那个分片+1， 没有则为1
                 }
             }
         }

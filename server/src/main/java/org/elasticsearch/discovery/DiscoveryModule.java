@@ -109,7 +109,7 @@ public class DiscoveryModule {
                 }
             });
         }
-
+        // // 将从这里读取discovery.seed_hosts配置的master节点
         List<String> seedProviderNames = DISCOVERY_SEED_PROVIDERS_SETTING.get(settings);
         // for bwc purposes, add settings provider even if not explicitly specified
         if (seedProviderNames.contains("settings") == false) {
@@ -135,7 +135,7 @@ public class DiscoveryModule {
             for (SeedHostsProvider provider : filteredSeedProviders) {
                 addresses.addAll(provider.getSeedAddresses(hostsResolver));
             }
-            return Collections.unmodifiableList(addresses);
+            return Collections.unmodifiableList(addresses); // 获取配置的master节点
         };
 
         final ElectionStrategy electionStrategy = electionStrategies.get(ELECTION_STRATEGY_SETTING.get(settings));
@@ -144,7 +144,7 @@ public class DiscoveryModule {
         }
 
         if (ZEN2_DISCOVERY_TYPE.equals(discoveryType) || SINGLE_NODE_DISCOVERY_TYPE.equals(discoveryType)) {
-            discovery = new Coordinator(NODE_NAME_SETTING.get(settings),
+            discovery = new Coordinator(NODE_NAME_SETTING.get(settings), // 这里产生Coordinator
                 settings, clusterSettings,
                 transportService, namedWriteableRegistry, allocationService, masterService, gatewayMetaState::getPersistedState,
                 seedHostsProvider, clusterApplier, joinValidators, new Random(Randomness.get().nextLong()), rerouteService,

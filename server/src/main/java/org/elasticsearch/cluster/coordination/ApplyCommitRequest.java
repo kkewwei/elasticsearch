@@ -32,7 +32,7 @@ import java.io.IOException;
 public class ApplyCommitRequest extends TermVersionRequest {
 
     public ApplyCommitRequest(DiscoveryNode sourceNode, long term, long version) {
-        super(sourceNode, term, version);
+        super(sourceNode, term, version); // sourceNode 是master
     }
 
     public ApplyCommitRequest(StreamInput in) throws IOException {

@@ -296,7 +296,7 @@ public class MetaDataCreateIndexService {
 
                 // we only find a template when its an API call (a new index)
                 // find templates, highest order are better matching
-                List<IndexTemplateMetaData> templates =
+                List<IndexTemplateMetaData> templates =  // 这里是找匹配的template
                         MetaDataIndexTemplateService.findTemplates(currentState.metaData(), request.index());
 
                 // add the request mapping
@@ -380,7 +380,7 @@ public class MetaDataCreateIndexService {
                 if (recoverFromIndex == null) {
                     // apply templates, here, in reverse order, since first ones are better matching
                     for (int i = templates.size() - 1; i >= 0; i--) {
-                        indexSettingsBuilder.put(templates.get(i).settings());
+                        indexSettingsBuilder.put(templates.get(i).settings()); // 将模板的settings的内容放到索引里面
                     }
                 }
                 // now, put the request settings, so they override templates

@@ -51,7 +51,7 @@ public class InboundHandler {
     private final TransportHandshaker handshaker;
     private final TransportKeepAlive keepAlive;
 
-    private final Transport.ResponseHandlers responseHandlers = new Transport.ResponseHandlers();
+    private final Transport.ResponseHandlers responseHandlers = new Transport.ResponseHandlers();  // 这个就是所有response requestid存储类
     private volatile Map<String, RequestHandlerRegistry<? extends TransportRequest>> requestHandlers = Collections.emptyMap();
     private volatile TransportMessageListener messageListener = TransportMessageListener.NOOP_LISTENER;
 

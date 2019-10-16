@@ -86,7 +86,7 @@ public class QueryShardContext extends QueryRewriteContext {
     private final int shardId;
     private final IndexSearcher searcher;
     private boolean cacheable = true;
-    private final SetOnce<Boolean> frozen = new SetOnce<>();
+    private final SetOnce<Boolean> frozen = new SetOnce<>();  // 当前查询的上下文，说明该QueryShardContext已经开始被查询了
 
     private final Index fullyQualifiedIndex;
     private final Predicate<String> indexNameMatcher;
@@ -336,7 +336,7 @@ public class QueryShardContext extends QueryRewriteContext {
     /**
      * if this method is called the query context will throw exception if methods are accessed
      * that could yield different results across executions like {@link #getClient()}
-     */
+     */  // 这个函数只能调用一次，两次的话，直接抛异常的
     public final void freezeContext() {
         this.frozen.set(Boolean.TRUE);
     }

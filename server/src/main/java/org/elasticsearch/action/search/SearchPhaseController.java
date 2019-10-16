@@ -562,7 +562,7 @@ public final class SearchPhaseController {
      * that incrementally reduces aggregation results as shard results are consumed.
      * This implementation can be configured to batch up a certain amount of results and only reduce them
      * iff the buffer is exhausted.
-     */
+     */  // 当需要查询的分片个数大于最大设置分片的时候，需要使用
     static final class QueryPhaseResultConsumer extends ArraySearchPhaseResults<SearchPhaseResult> {
         private final InternalAggregations[] aggsBuffer;
         private final TopDocs[] topDocsBuffer;
@@ -682,11 +682,11 @@ public final class SearchPhaseController {
         SearchSourceBuilder source = request.source();
         boolean isScrollRequest = request.scroll() != null;
         final boolean hasAggs = source != null && source.aggregations() != null;
-        final boolean hasTopDocs = source == null || source.size() != 0;
-        final int trackTotalHitsUpTo = resolveTrackTotalHits(request);
-        if (isScrollRequest == false && (hasAggs || hasTopDocs)) {
+        final boolean hasTopDocs = source == null || source.size() != 0; // true, source为空，或者
+        final int trackTotalHitsUpTo = resolveTrackTotalHits(request); // 默认值 10000
+        if (isScrollRequest == false && (hasAggs || hasTopDocs)) { // 如果有聚合操作，或者文档数要求的，就得设置
             // no incremental reduce if scroll is used - we only hit a single shard or sometimes more...
-            if (request.getBatchedReduceSize() < numShards) {
+            if (request.getBatchedReduceSize() < numShards) { // 当当前聚合的分片大于限定分片
                 // only use this if there are aggs and if there are more shards than we should reduce at once
                 return new QueryPhaseResultConsumer(this, numShards, request.getBatchedReduceSize(), hasTopDocs, hasAggs,
                     trackTotalHitsUpTo, request.isFinalReduce());
@@ -694,7 +694,7 @@ public final class SearchPhaseController {
         }
         return new ArraySearchPhaseResults<SearchPhaseResult>(numShards) {
             @Override
-            ReducedQueryPhase reduce() {
+            ReducedQueryPhase reduce() { // 将所有查询结果进行最终的聚合操作
                 return reducedQueryPhase(results.asList(), isScrollRequest, trackTotalHitsUpTo, request.isFinalReduce());
             }
         };

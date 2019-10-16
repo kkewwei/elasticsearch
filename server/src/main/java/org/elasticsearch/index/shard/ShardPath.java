@@ -205,7 +205,7 @@ public final class ShardPath {
 
             // TODO: this is a hack!!  We should instead keep track of incoming (relocated) shards since we know
             // how large they will be once they're done copying, instead of a silly guess for such cases:
-
+           // 平均shard大小和当前剩余空间的1/20
             // Very rough heuristic of how much disk space we expect the shard will use over its lifetime, the max of current average
             // shard size across the cluster and 5% of the total available free space on this node:
             BigInteger estShardSizeInBytes = BigInteger.valueOf(avgShardSizeInBytes).max(totFreeSpace.divide(BigInteger.valueOf(20)));
@@ -214,7 +214,7 @@ public final class ShardPath {
             final NodeEnvironment.NodePath[] paths = env.nodePaths();
 
             // If no better path is chosen, use the one with the most space by default
-            NodeEnvironment.NodePath bestPath = getPathWithMostFreeSpace(env);
+            NodeEnvironment.NodePath bestPath = getPathWithMostFreeSpace(env);// 通过剩余空间
 
             if (paths.length != 1) {
                 Map<NodeEnvironment.NodePath, Long> pathToShardCount = env.shardCountPerPath(shardId.getIndex());
@@ -231,16 +231,16 @@ public final class ShardPath {
                         // Filter out paths that have enough space
                         .filter((path) -> pathsToSpace.get(path).subtract(estShardSizeInBytes).compareTo(BigInteger.ZERO) > 0)
                         // Sort by the number of shards for this index
-                        .sorted((p1, p2) -> {
+                        .sorted((p1, p2) -> { // 先按照shard个数进行排序
                                 int cmp = Long.compare(pathToShardCount.getOrDefault(p1, 0L),
                                     pathToShardCount.getOrDefault(p2, 0L));
                                 if (cmp == 0) {
                                     // if the number of shards is equal, tie-break with the number of total shards
-                                    cmp = Integer.compare(dataPathToShardCount.getOrDefault(p1.path, 0),
+                                    cmp = Integer.compare(dataPathToShardCount.getOrDefault(p1.path, 0), // 总shard个数
                                             dataPathToShardCount.getOrDefault(p2.path, 0));
                                     if (cmp == 0) {
                                         // if the number of shards is equal, tie-break with the usable bytes
-                                        cmp = pathsToSpace.get(p2).compareTo(pathsToSpace.get(p1));
+                                        cmp = pathsToSpace.get(p2).compareTo(pathsToSpace.get(p1));// 再按照磁盘空间
                                     }
                                 }
                                 return cmp;

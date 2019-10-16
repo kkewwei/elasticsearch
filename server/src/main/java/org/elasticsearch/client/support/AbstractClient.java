@@ -652,7 +652,7 @@ public abstract class AbstractClient implements Client {
 
     static class ClusterAdmin implements ClusterAdminClient {
 
-        private final ElasticsearchClient client;
+        private final ElasticsearchClient client; // NodeClient
 
         ClusterAdmin(ElasticsearchClient client) {
             this.client = client;
@@ -667,7 +667,7 @@ public abstract class AbstractClient implements Client {
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> void execute(
             ActionType<Response> action, Request request, ActionListener<Response> listener) {
-            client.execute(action, request, listener);
+            client.execute(action, request, listener); // NodeClient
         }
 
         @Override

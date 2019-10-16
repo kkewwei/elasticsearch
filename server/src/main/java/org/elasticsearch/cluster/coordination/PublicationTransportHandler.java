@@ -61,8 +61,8 @@ public class PublicationTransportHandler {
 
     private static final Logger logger = LogManager.getLogger(PublicationTransportHandler.class);
 
-    public static final String PUBLISH_STATE_ACTION_NAME = "internal:cluster/coordination/publish_state";
-    public static final String COMMIT_STATE_ACTION_NAME = "internal:cluster/coordination/commit_state";
+    public static final String PUBLISH_STATE_ACTION_NAME = "internal:cluster/coordination/publish_state";  // master发布publish信息 ，没有超时设置
+    public static final String COMMIT_STATE_ACTION_NAME = "internal:cluster/coordination/commit_state"; // 当数据节点响应过半后，我们开始向这些节点发送确认state的请求
 
     private final TransportService transportService;
     private final NamedWriteableRegistry namedWriteableRegistry;
@@ -81,7 +81,7 @@ public class PublicationTransportHandler {
     private final AtomicLong incompatibleClusterStateDiffReceivedCount = new AtomicLong();
     private final AtomicLong compatibleClusterStateDiffReceivedCount = new AtomicLong();
     // -> no need to put a timeout on the options here, because we want the response to eventually be received
-    //  and not log an error if it arrives after the timeout
+    //  and not log an error if it arrives after the timeout 这里没有设置超时，因为我们就是想接收到响应，在coordinator中设置超时了。超时后只是将publishTarget为fail
     private final TransportRequestOptions stateRequestOptions = TransportRequestOptions.builder()
         .withType(TransportRequestOptions.Type.STATE).build();
 
@@ -98,7 +98,7 @@ public class PublicationTransportHandler {
         transportService.registerRequestHandler(COMMIT_STATE_ACTION_NAME, ThreadPool.Names.GENERIC, false, false,
             ApplyCommitRequest::new,
             (request, channel, task) -> handleApplyCommit.accept(request, transportCommitCallback(channel)));
-    }
+    } // handleApplyCommit = Coordinator.handleApplyCommit
 
     private ActionListener<Void> transportCommitCallback(TransportChannel channel) {
         return new ActionListener<Void>() {
@@ -157,12 +157,12 @@ public class PublicationTransportHandler {
             nodes, sendFullVersion, serializedStates, serializedDiffs);
 
         return new PublicationContext() {
-            @Override
+            @Override    // publish时候的发送的请求
             public void sendPublishRequest(DiscoveryNode destination, PublishRequest publishRequest,
-                                           ActionListener<PublishWithJoinResponse> originalListener) {
+                                           ActionListener<PublishWithJoinResponse> originalListener) { // PublishResponseHandler
                 assert publishRequest.getAcceptedState() == clusterChangedEvent.state() : "state got switched on us";
                 final ActionListener<PublishWithJoinResponse> responseActionListener;
-                if (destination.equals(nodes.getLocalNode())) {
+                if (destination.equals(nodes.getLocalNode())) { // 目标节点就是本节点
                     // if publishing to self, use original request instead (see currentPublishRequestToSelf for explanation)
                     final PublishRequest previousRequest = currentPublishRequestToSelf.getAndSet(publishRequest);
                     // we might override an in-flight publication to self in case where we failed as master and became master again,
@@ -172,7 +172,7 @@ public class PublicationTransportHandler {
                         @Override
                         public void onResponse(PublishWithJoinResponse publishWithJoinResponse) {
                             currentPublishRequestToSelf.compareAndSet(publishRequest, null); // only clean-up our mess
-                            originalListener.onResponse(publishWithJoinResponse);
+                            originalListener.onResponse(publishWithJoinResponse); // PublishResponseHandler
                         }
 
                         @Override
@@ -182,12 +182,12 @@ public class PublicationTransportHandler {
                         }
                     };
                 } else {
-                    responseActionListener = originalListener;
-                }
+                    responseActionListener = originalListener; // PublishResponseHandler
+                }  // 发布全量
                 if (sendFullVersion || !previousState.nodes().nodeExists(destination)) {
                     logger.trace("sending full cluster state version {} to {}", newState.version(), destination);
                     PublicationTransportHandler.this.sendFullClusterState(newState, serializedStates, destination, responseActionListener);
-                } else {
+                } else { // 发布增量
                     logger.trace("sending cluster state diff for version {} to {}", newState.version(), destination);
                     PublicationTransportHandler.this.sendClusterStateDiff(newState, serializedDiffs, serializedStates, destination,
                         responseActionListener);
@@ -196,7 +196,7 @@ public class PublicationTransportHandler {
 
             @Override
             public void sendApplyCommit(DiscoveryNode destination, ApplyCommitRequest applyCommitRequest,
-                                        ActionListener<TransportResponse.Empty> responseActionListener) {
+                                        ActionListener<TransportResponse.Empty> responseActionListener) { //ApplyCommitResponseHandler
                 transportService.sendRequest(destination, COMMIT_STATE_ACTION_NAME, applyCommitRequest, stateRequestOptions,
                     new TransportResponseHandler<TransportResponse.Empty>() {
 
@@ -225,7 +225,7 @@ public class PublicationTransportHandler {
     }
 
     private void sendClusterStateToNode(ClusterState clusterState, BytesReference bytes, DiscoveryNode node,
-                                        ActionListener<PublishWithJoinResponse> responseActionListener, boolean sendDiffs,
+                                        ActionListener<PublishWithJoinResponse> responseActionListener, boolean sendDiffs, // PublishResponseHandler
                                         Map<Version, BytesReference> serializedStates) {
         try {
             final BytesTransportRequest request = new BytesTransportRequest(bytes, node.getVersion());
@@ -238,7 +238,7 @@ public class PublicationTransportHandler {
                     responseActionListener.onFailure(exp);
                 }
             };
-            final TransportResponseHandler<PublishWithJoinResponse> publishWithJoinResponseHandler =
+            final TransportResponseHandler<PublishWithJoinResponse> publishWithJoinResponseHandler = // 接收到用户返回的publish 响应
                 new TransportResponseHandler<PublishWithJoinResponse>() {
 
                     @Override
@@ -248,7 +248,7 @@ public class PublicationTransportHandler {
 
                     @Override
                     public void handleResponse(PublishWithJoinResponse response) {
-                        responseActionListener.onResponse(response);
+                        responseActionListener.onResponse(response); // PublishResponseHandler
                     }
 
                     @Override
@@ -260,7 +260,7 @@ public class PublicationTransportHandler {
                     public String executor() {
                         return ThreadPool.Names.GENERIC;
                     }
-                };
+                }; // 而是在CoordinatorPublication产生时设置了一个整体的定时超时任务
             transportService.sendRequest(node, PUBLISH_STATE_ACTION_NAME, request, stateRequestOptions, publishWithJoinResponseHandler);
         } catch (Exception e) {
             logger.warn(() -> new ParameterizedMessage("error sending cluster state to {}", node), e);
@@ -336,7 +336,7 @@ public class PublicationTransportHandler {
         }
         return bStream.bytes();
     }
-
+   // 回复master的publish请求
     private PublishWithJoinResponse handleIncomingPublishRequest(BytesTransportRequest request) throws IOException {
         final Compressor compressor = CompressorFactory.compressor(request.bytes());
         StreamInput in = request.bytes().streamInput();
@@ -347,7 +347,7 @@ public class PublicationTransportHandler {
             in = new NamedWriteableAwareStreamInput(in, namedWriteableRegistry);
             in.setVersion(request.version());
             // If true we received full cluster state - otherwise diffs
-            if (in.readBoolean()) {
+            if (in.readBoolean()) { // 全部替换
                 final ClusterState incomingState;
                 try {
                     incomingState = ClusterState.readFrom(in, transportService.getLocalNode());
@@ -361,7 +361,7 @@ public class PublicationTransportHandler {
                 final PublishWithJoinResponse response = acceptState(incomingState);
                 lastSeenClusterState.set(incomingState);
                 return response;
-            } else {
+            } else { // 增量
                 final ClusterState lastSeen = lastSeenClusterState.get();
                 if (lastSeen == null) {
                     logger.debug("received diff for but don't have any local cluster state - requesting full state");
@@ -402,6 +402,6 @@ public class PublicationTransportHandler {
                 return handlePublishRequest.apply(publishRequest);
             }
         }
-        return handlePublishRequest.apply(new PublishRequest(incomingState));
+        return handlePublishRequest.apply(new PublishRequest(incomingState)); // 将进入到Coordinator.handlePublishRequest()
     }
 }

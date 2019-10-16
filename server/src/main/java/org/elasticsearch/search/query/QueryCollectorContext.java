@@ -47,7 +47,7 @@ abstract class QueryCollectorContext {
     private String profilerName;
 
     QueryCollectorContext(String profilerName) {
-        this.profilerName = profilerName;
+        this.profilerName = profilerName; // search_cancelled，search_top_hits
     }
 
     /**
@@ -154,8 +154,8 @@ abstract class QueryCollectorContext {
      * Creates a collector that throws {@link TaskCancelledException} if the search is cancelled
      */
     static QueryCollectorContext createCancellableCollectorContext(BooleanSupplier cancelled) {
-        return new QueryCollectorContext(REASON_SEARCH_CANCELLED) {
-            @Override
+        return new QueryCollectorContext(REASON_SEARCH_CANCELLED) { // search_cancelled
+            @Override  // 创建collector tree
             Collector create(Collector in) throws IOException {
                 return new CancellableCollector(cancelled, in);
             }

@@ -155,7 +155,7 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
 
     private boolean trackScores = false;
 
-    private Integer trackTotalHitsUpTo;
+    private Integer trackTotalHitsUpTo;  // 默认为null
 
     private SearchAfterBuilder searchAfterBuilder;
 
@@ -164,7 +164,7 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
     private Float minScore;
 
     private TimeValue timeout = null;
-    private int terminateAfter = SearchContext.DEFAULT_TERMINATE_AFTER;
+    private int terminateAfter = SearchContext.DEFAULT_TERMINATE_AFTER;  // 是否开启提前结束查询，主要是控制一次查询，从一个分片中返回最大文档数量后，如果开启，返回结果中会包含一个响应参数terminated_early，指示是否提前结束。
 
     private StoredFieldsContext storedFieldsContext;
     private List<FieldAndFormat> docValueFields;
@@ -545,7 +545,7 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
      */
     @Nullable
     public Integer trackTotalHitsUpTo() {
-        return trackTotalHitsUpTo;
+        return trackTotalHitsUpTo; // 默认为null
     }
 
     public SearchSourceBuilder trackTotalHitsUpTo(int trackTotalHitsUpTo) {
@@ -920,12 +920,12 @@ public final class SearchSourceBuilder implements Writeable, ToXContentObject, R
      * reference must be returned otherwise the builder will be rewritten
      * infinitely.
      */
-    @Override
+    @Override   // SearchSourceBuilder.rewrite
     public SearchSourceBuilder rewrite(QueryRewriteContext context) throws IOException {
         assert (this.equals(shallowCopy(queryBuilder, postQueryBuilder, aggregations, sliceBuilder, sorts, rescoreBuilders,
             highlightBuilder)));
         QueryBuilder queryBuilder = null;
-        if (this.queryBuilder != null) {
+        if (this.queryBuilder != null) { // query重写
             queryBuilder = this.queryBuilder.rewrite(context);
         }
         QueryBuilder postQueryBuilder = null;

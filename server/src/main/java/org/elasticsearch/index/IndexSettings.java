@@ -1072,7 +1072,7 @@ public final class IndexSettings {
      * {@link org.elasticsearch.threadpool.ThreadPool.Names#SEARCH_THROTTLED} thread-pool
      */
     public boolean isSearchThrottled() {
-        return searchThrottled;
+        return searchThrottled;  // 指的是frazon index
     }
 
     private void setSearchThrottled(boolean searchThrottled) {

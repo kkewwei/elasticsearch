@@ -47,7 +47,7 @@ public class ConnectionManager implements Closeable {
 
     private static final Logger logger = LogManager.getLogger(ConnectionManager.class);
 
-    private final ConcurrentMap<DiscoveryNode, Transport.Connection> connectedNodes = ConcurrentCollections.newConcurrentMap();
+    private final ConcurrentMap<DiscoveryNode, Transport.Connection> connectedNodes = ConcurrentCollections.newConcurrentMap();  // 会去建立连接
     private final ConcurrentMap<DiscoveryNode, ListenableFuture<Void>> pendingConnections = ConcurrentCollections.newConcurrentMap();
     private final AbstractRefCounted connectingRefCounter = new AbstractRefCounted("connection manager") {
         @Override
@@ -142,11 +142,11 @@ public class ConnectionManager implements Closeable {
                 ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
                     try {
-                        if (connectedNodes.putIfAbsent(node, conn) != null) {
+                        if (connectedNodes.putIfAbsent(node, conn) != null) { // 这里已经开始放节点了
                             logger.debug("existing connection to node [{}], closing new redundant connection", node);
-                            IOUtils.closeWhileHandlingException(conn);
+                            IOUtils.closeWhileHandlingException(conn); // 只有当已经存在了，才关闭新的，保留旧的连接。
                         } else {
-                            logger.debug("connected to node [{}]", node);
+                            logger.debug("connected to node [{}]", node); // 最开始连接到集群
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {

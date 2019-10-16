@@ -46,7 +46,7 @@ public final class AutoQueueAdjustingExecutorBuilder extends ExecutorBuilder<Aut
     private final Setting<Integer> minQueueSizeSetting;
     private final Setting<Integer> maxQueueSizeSetting;
     private final Setting<TimeValue> targetedResponseTimeSetting;
-    private final Setting<Integer> frameSizeSetting;
+    private final Setting<Integer> frameSizeSetting;  // 每执行完多少个任务，就去调整一次队列大小
 
     AutoQueueAdjustingExecutorBuilder(final Settings settings, final String name, final int size,
                                       final int initialQueueSize, final int minQueueSize,

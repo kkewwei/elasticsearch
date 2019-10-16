@@ -60,7 +60,7 @@ import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.new
  * follower has failed the leader will remove it from the cluster. We are fairly lenient, possibly allowing multiple checks to fail before
  * considering a follower to be faulty, to allow for a brief network partition or a long GC cycle to occur without triggering the removal of
  * a node and the consequent shard reallocation.
- */
+ */ //  对data的周期性ping, 就是以前的NodesFaultDetection, 另一个是LeaderChecker。
 public class FollowersChecker {
 
     private static final Logger logger = LogManager.getLogger(FollowersChecker.class);
@@ -83,11 +83,11 @@ public class FollowersChecker {
 
     private final Settings settings;
 
-    private final TimeValue followerCheckInterval;
-    private final TimeValue followerCheckTimeout;
-    private final int followerCheckRetryCount;
-    private final BiConsumer<DiscoveryNode, String> onNodeFailure;
-    private final Consumer<FollowerCheckRequest> handleRequestAndUpdateState;
+    private final TimeValue followerCheckInterval;  // 10s
+    private final TimeValue followerCheckTimeout;  // 10s
+    private final int followerCheckRetryCount; // 最多尝试次数，最多尝试3次
+    private final BiConsumer<DiscoveryNode, String> onNodeFailure; // coordinator.removeNode
+    private final Consumer<FollowerCheckRequest> handleRequestAndUpdateState;// coordinator.onFollowerCheckRequest
 
     private final Object mutex = new Object(); // protects writes to this state; read access does not need sync
     private final Map<DiscoveryNode, FollowerChecker> followerCheckers = newConcurrentMap();
@@ -95,7 +95,7 @@ public class FollowersChecker {
 
     private final TransportService transportService;
 
-    private volatile FastResponseState fastResponseState;
+    private volatile FastResponseState fastResponseState; // 回复每个follower的内容都是一样的，那么我们只需要维持这个state是最新的即可。
 
     public FollowersChecker(Settings settings, TransportService transportService,
                             Consumer<FollowerCheckRequest> handleRequestAndUpdateState,
@@ -105,9 +105,9 @@ public class FollowersChecker {
         this.handleRequestAndUpdateState = handleRequestAndUpdateState;
         this.onNodeFailure = onNodeFailure;
 
-        followerCheckInterval = FOLLOWER_CHECK_INTERVAL_SETTING.get(settings);
-        followerCheckTimeout = FOLLOWER_CHECK_TIMEOUT_SETTING.get(settings);
-        followerCheckRetryCount = FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings);
+        followerCheckInterval = FOLLOWER_CHECK_INTERVAL_SETTING.get(settings); // 10s
+        followerCheckTimeout = FOLLOWER_CHECK_TIMEOUT_SETTING.get(settings); // 10s
+        followerCheckRetryCount = FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings); // 3
 
         updateFastResponseState(0, Mode.CANDIDATE);
         transportService.registerRequestHandler(FOLLOWER_CHECK_ACTION_NAME, Names.SAME, false, false, FollowerCheckRequest::new,
@@ -122,7 +122,7 @@ public class FollowersChecker {
 
     /**
      * Update the set of known nodes, starting to check any new ones and stopping checking any previously-known-but-now-unknown ones.
-     */
+     */  // 只是对增加新加入的节点增加心跳监控
     public void setCurrentNodes(DiscoveryNodes discoveryNodes) {
         synchronized (mutex) {
             final Predicate<DiscoveryNode> isUnknownNode = n -> discoveryNodes.nodeExists(n) == false;
@@ -130,10 +130,10 @@ public class FollowersChecker {
             faultyNodes.removeIf(isUnknownNode);
 
             discoveryNodes.mastersFirstStream().forEach(discoveryNode -> {
-                if (discoveryNode.equals(discoveryNodes.getLocalNode()) == false
-                    && followerCheckers.containsKey(discoveryNode) == false
-                    && faultyNodes.contains(discoveryNode) == false) {
-
+                if (discoveryNode.equals(discoveryNodes.getLocalNode()) == false // 除掉本地节点
+                    && followerCheckers.containsKey(discoveryNode) == false // 若followerCheckers中不包含这个节点
+                    && faultyNodes.contains(discoveryNode) == false) {  // 不在
+                    // 若发现是头一次连接， 则开始周期性检查
                     final FollowerChecker followerChecker = new FollowerChecker(discoveryNode);
                     followerCheckers.put(discoveryNode, followerChecker);
                     followerChecker.start();
@@ -284,7 +284,7 @@ public class FollowersChecker {
 
         void start() {
             assert running();
-            handleWakeUp();
+            handleWakeUp();  // 开始进行第一次连接到data的节点，周期性ping, 就是以前的DataFaultDetection
         }
 
         private void handleWakeUp() {
@@ -293,7 +293,7 @@ public class FollowersChecker {
                 return;
             }
 
-            final FollowerCheckRequest request = new FollowerCheckRequest(fastResponseState.term, transportService.getLocalNode());
+            final FollowerCheckRequest request = new FollowerCheckRequest(fastResponseState.term, transportService.getLocalNode()); // 相当于master单独对数据节点进行一次心跳请求
             logger.trace("handleWakeUp: checking {} with {}", discoveryNode, request);
 
             transportService.sendRequest(discoveryNode, FOLLOWER_CHECK_ACTION_NAME, request,
@@ -330,10 +330,10 @@ public class FollowersChecker {
                             logger.debug(() -> new ParameterizedMessage("{} failed too many times", FollowerChecker.this), exp);
                             reason = "followers check retry count exceeded";
                         } else if (exp instanceof ConnectTransportException
-                            || exp.getCause() instanceof ConnectTransportException) {
+                            || exp.getCause() instanceof ConnectTransportException) { // 失败原因是连接异常，那么直接失败
                             logger.debug(() -> new ParameterizedMessage("{} disconnected", FollowerChecker.this), exp);
                             reason = "disconnected";
-                        } else {
+                        } else {  // 会去记性下一个重试
                             logger.debug(() -> new ParameterizedMessage("{} failed, retrying", FollowerChecker.this), exp);
                             scheduleNextWakeUp();
                             return;
@@ -355,13 +355,13 @@ public class FollowersChecker {
                 @Override
                 public void run() {
                     synchronized (mutex) {
-                        if (running() == false) {
+                        if (running() == false) { // 早已经不再master列表了，则直接退出
                             logger.trace("{} no longer running, not marking faulty", FollowerChecker.this);
                             return;
                         }
                         logger.debug("{} marking node as faulty", FollowerChecker.this);
                         faultyNodes.add(discoveryNode);
-                        followerCheckers.remove(discoveryNode);
+                        followerCheckers.remove(discoveryNode); // 从master列表中删掉
                     }
                     onNodeFailure.accept(discoveryNode, reason);
                 }
@@ -372,7 +372,7 @@ public class FollowersChecker {
                 }
             });
         }
-
+        // 周期性ping 数据节点
         private void scheduleNextWakeUp() {
             transportService.getThreadPool().schedule(new Runnable() {
                 @Override

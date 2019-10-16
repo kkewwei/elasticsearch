@@ -79,7 +79,7 @@ public class EsThreadPoolExecutor extends ThreadPoolExecutor {
 
     @Override
     public void execute(Runnable command) {
-        command = wrapRunnable(command);
+        command = wrapRunnable(command); // 跑到PrioritizedEsThreadPoolExecutor里面
         try {
             super.execute(command);
         } catch (EsRejectedExecutionException ex) {

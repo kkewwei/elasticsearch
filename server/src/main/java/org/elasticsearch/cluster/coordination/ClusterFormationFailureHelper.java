@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.cluster.coordination.ClusterBootstrapService.INITIAL_MASTER_NODES_SETTING;
-
+// 集群选举失败日志打印器 ，在节点变成coordinator时也启动了
 public class ClusterFormationFailureHelper {
     private static final Logger logger = LogManager.getLogger(ClusterFormationFailureHelper.class);
 
@@ -52,7 +52,7 @@ public class ClusterFormationFailureHelper {
 
     private final Supplier<ClusterFormationState> clusterFormationStateSupplier;
     private final ThreadPool threadPool;
-    private final TimeValue clusterFormationWarningTimeout;
+    private final TimeValue clusterFormationWarningTimeout; // 默认10s
     private final Runnable logLastFailedJoinAttempt;
     @Nullable // if no warning is scheduled
     private volatile WarningScheduler warningScheduler;

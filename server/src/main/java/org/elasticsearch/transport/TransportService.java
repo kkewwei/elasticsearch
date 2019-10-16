@@ -73,7 +73,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
     public static final String DIRECT_RESPONSE_PROFILE = ".direct";
     public static final String HANDSHAKE_ACTION_NAME = "internal:transport/handshake";
 
-    private final AtomicBoolean handleIncomingRequests = new AtomicBoolean();
+    private final AtomicBoolean handleIncomingRequests = new AtomicBoolean();  // 可以开始接受别人的请求了，
     private final DelegatingTransportMessageListener messageListener = new DelegatingTransportMessageListener();
     protected final Transport transport;
     protected final ConnectionManager connectionManager;
@@ -443,7 +443,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
         final DiscoveryNode node = connection.getNode();
         sendRequest(connection, HANDSHAKE_ACTION_NAME, HandshakeRequest.INSTANCE,
             TransportRequestOptions.builder().withTimeout(handshakeTimeout).build(),
-            new ActionListenerResponseHandler<>(
+            new ActionListenerResponseHandler<>( //
                 new ActionListener<>() {
                     @Override
                     public void onResponse(HandshakeResponse response) {
@@ -546,7 +546,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
                                                                 final TransportResponseHandler<T> handler) {
         try {
             Transport.Connection connection = getConnection(node);
-            sendRequest(connection, action, request, TransportRequestOptions.EMPTY, handler);
+            sendRequest(connection, action, request, TransportRequestOptions.EMPTY, handler); // 可以看到，这里请求并没有超时设置
         } catch (NodeNotConnectedException ex) {
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
@@ -732,7 +732,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
                     @Override
                     public void onFailure(Exception e) {
                         try {
-                            channel.sendResponse(e);
+                            channel.sendResponse(e); // 抛异常了，直返回去
                         } catch (Exception inner) {
                             inner.addSuppressed(e);
                             logger.warn(() -> new ParameterizedMessage(

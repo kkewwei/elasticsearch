@@ -35,7 +35,7 @@ public interface CircuitBreaker {
      * it's not a "real" breaker in that it cannot be added to or subtracted
      * from by itself.
      */
-    String PARENT = "parent";
+    String PARENT = "parent";  // 父熔断器，保证所有总的熔断器总共的内存使用
     /**
      * The fielddata breaker tracks data used for fielddata (on fields) as well
      * as the id cached used for parent/child queries.
@@ -52,7 +52,7 @@ public interface CircuitBreaker {
     /**
      * The in-flight request breaker tracks bytes allocated for reading and
      * writing requests on the network layer.
-     */
+     */ // 请求中的熔断器，网络层面读取请求的内存大小  请求中的熔断器，允许Elasticsearch限制在传输或HTTP级别上的所有当前活动的传入请求的内存使用超过节点上的一定量的内存。 内存使用是基于请求本身的内容长度。
     String IN_FLIGHT_REQUESTS = "inflight_requests";
     /**
      * The accounting breaker tracks things held in memory that is independent

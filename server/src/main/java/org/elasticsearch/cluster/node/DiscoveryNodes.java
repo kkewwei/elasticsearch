@@ -56,7 +56,7 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
 
     private final ImmutableOpenMap<String, DiscoveryNode> nodes;
     private final ImmutableOpenMap<String, DiscoveryNode> dataNodes;
-    private final ImmutableOpenMap<String, DiscoveryNode> masterNodes;
+    private final ImmutableOpenMap<String, DiscoveryNode> masterNodes; // master节点
     private final ImmutableOpenMap<String, DiscoveryNode> ingestNodes;
 
     private final String masterNodeId;
@@ -168,7 +168,7 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
     /**
      * Returns a stream of all nodes, with master nodes at the front
      */
-    public Stream<DiscoveryNode> mastersFirstStream() {
+    public Stream<DiscoveryNode> mastersFirstStream() { // master放在前面，组成一个stream
         return Stream.concat(StreamSupport.stream(masterNodes.spliterator(), false).map(cur -> cur.value),
             StreamSupport.stream(this.spliterator(), false).filter(n -> n.isMasterNode() == false));
     }

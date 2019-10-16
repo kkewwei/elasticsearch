@@ -71,7 +71,7 @@ public class RestThreadPoolAction extends AbstractCatAction {
     public RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
         final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
         clusterStateRequest.clear().nodes(true);
-        clusterStateRequest.local(request.paramAsBoolean("local", clusterStateRequest.local()));
+        clusterStateRequest.local(request.paramAsBoolean("local", clusterStateRequest.local())); // 这类请求，若不指定，都的从master获取
         clusterStateRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterStateRequest.masterNodeTimeout()));
 
         return channel -> client.admin().cluster().state(clusterStateRequest, new RestActionListener<ClusterStateResponse>(channel) {

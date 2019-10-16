@@ -78,7 +78,7 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
         }
         Set<String> preLoadExtensions = new HashSet<>(
             indexSettings.getValue(IndexModule.INDEX_STORE_PRE_LOAD_SETTING));
-        switch (type) {
+        switch (type) { //
             case HYBRIDFS:
                 // Use Lucene defaults
                 final FSDirectory primaryDirectory = FSDirectory.open(location, lockFactory);
@@ -130,7 +130,7 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
 
         @Override
         public IndexInput openInput(String name, IOContext context) throws IOException {
-            if (useDelegate(name)) {
+            if (useDelegate(name)) { // 这里确定打开文件是使用MMAP打开，还是NIO打开
                 // we need to do these checks on the outer directory since the inner doesn't know about pending deletes
                 ensureOpen();
                 ensureCanRead(name);
@@ -148,9 +148,9 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
         public void close() throws IOException {
             IOUtils.close(super::close, delegate);
         }
-
+        // 使用MMAP映射文件的几种方式，详情可参考https://mp.weixin.qq.com/s/BO92cM9XSulTM67Azx12XQ
         boolean useDelegate(String name) {
-            String extension = FileSwitchDirectory.getExtension(name);
+            String extension = FileSwitchDirectory.getExtension(name); // 扩展名称
             switch(extension) {
                 // We are mmapping norms, docvalues as well as term dictionaries, all other files are served through NIOFS
                 // this provides good random access performance and does not lead to page cache thrashing.

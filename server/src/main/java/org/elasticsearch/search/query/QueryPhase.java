@@ -139,8 +139,8 @@ public class QueryPhase implements SearchPhase {
         try {
             queryResult.from(searchContext.from());
             queryResult.size(searchContext.size());
-            Query query = searchContext.query();
-            assert query == searcher.rewrite(query); // already rewritten
+            Query query = searchContext.query();// BoostQuery
+            assert query == searcher.rewrite(query); // already rewritten, 判定query不能再重写了
 
             final ScrollContext scrollContext = searchContext.scrollContext();
             if (scrollContext != null) {
@@ -179,25 +179,25 @@ public class QueryPhase implements SearchPhase {
             final LinkedList<QueryCollectorContext> collectors = new LinkedList<>();
             // whether the chain contains a collector that filters documents
             boolean hasFilterCollector = false;
-            if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER) {
+            if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER) { // 跳过
                 // add terminate_after before the filter collectors
                 // it will only be applied on documents accepted by these filter collectors
                 collectors.add(createEarlyTerminationCollectorContext(searchContext.terminateAfter()));
                 // this collector can filter documents during the collection
                 hasFilterCollector = true;
             }
-            if (searchContext.parsedPostFilter() != null) {
+            if (searchContext.parsedPostFilter() != null) { // 跳过
                 // add post filters before aggregations
                 // it will only be applied to top hits
                 collectors.add(createFilteredCollectorContext(searcher, searchContext.parsedPostFilter().query()));
                 // this collector can filter documents during the collection
                 hasFilterCollector = true;
             }
-            if (searchContext.queryCollectors().isEmpty() == false) {
+            if (searchContext.queryCollectors().isEmpty() == false) { // 跳过
                 // plug in additional collectors, like aggregations
                 collectors.add(createMultiCollectorContext(searchContext.queryCollectors().values()));
             }
-            if (searchContext.minimumScore() != null) {
+            if (searchContext.minimumScore() != null) { // 跳过
                 // apply the minimum score after multi collector so we filter aggs as well
                 collectors.add(createMinScoreCollectorContext(searchContext.minimumScore()));
                 // this collector can filter documents during the collection
@@ -223,7 +223,7 @@ public class QueryPhase implements SearchPhase {
             }
 
             final Runnable cancellationRunnable;
-            if (searchContext.lowLevelCancellation()) {
+            if (searchContext.lowLevelCancellation()) { // 进来
                 SearchTask task = searchContext.getTask();
                 cancellationRunnable = () -> { if (task.isCancelled()) throw new TaskCancelledException("cancelled"); };
             } else {
@@ -231,7 +231,7 @@ public class QueryPhase implements SearchPhase {
             }
 
             final Runnable checkCancelled;
-            if (timeoutRunnable != null && cancellationRunnable != null) {
+            if (timeoutRunnable != null && cancellationRunnable != null) { // 如果超时就取消
                 checkCancelled = () -> {
                     timeoutRunnable.run();
                     cancellationRunnable.run();
@@ -246,14 +246,14 @@ public class QueryPhase implements SearchPhase {
 
             checkCancellationSetter.accept(checkCancelled);
 
-            // add cancellable
+            // add cancellable   设置cancellable
             // this only performs segment-level cancellation, which is cheap and checked regardless of
             // searchContext.lowLevelCancellation()
             collectors.add(createCancellableCollectorContext(searchContext.getTask()::isCancelled));
 
             final boolean doProfile = searchContext.getProfilers() != null;
-            // create the top docs collector last when the other collectors are known
-            final TopDocsCollectorContext topDocsFactory = createTopDocsCollectorContext(searchContext, reader, hasFilterCollector);
+            // create the top docs collector last when the other collectors are known // 产生SimpleTopDocsCollector
+            final TopDocsCollectorContext topDocsFactory = createTopDocsCollectorContext(searchContext, reader, hasFilterCollector); // SimpleTopDocsCollectorContext，需要进来一看
             // add the top docs collector, the first collector context in the chain
             collectors.addFirst(topDocsFactory);
 
@@ -263,7 +263,7 @@ public class QueryPhase implements SearchPhase {
                 searchContext.getProfilers().getCurrentQueryProfiler().setCollector(profileCollector);
                 queryCollector = profileCollector;
             } else {
-               queryCollector = QueryCollectorContext.createQueryCollector(collectors);
+               queryCollector = QueryCollectorContext.createQueryCollector(collectors); // 变成了一个链式
             }
 
             try {

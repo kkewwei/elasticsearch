@@ -80,7 +80,7 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
     }
 
     @Override
-    protected void doMerge(IndexWriter writer, MergePolicy.OneMerge merge) throws IOException {
+    protected void doMerge(IndexWriter writer, MergePolicy.OneMerge merge) throws IOException { // 开始合并
         int totalNumDocs = merge.totalNumDocs();
         long totalSizeInBytes = merge.totalBytesSize();
         long timeNS = System.nanoTime();
@@ -97,13 +97,13 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
                 new ByteSizeValue(merge.estimatedMergeBytes));
         }
         try {
-            beforeMerge(onGoingMerge);
-            super.doMerge(writer, merge);
+            beforeMerge(onGoingMerge); // 进行合并前的检查
+            super.doMerge(writer, merge); // 真正调用lucene进行合并
         } finally {
             long tookMS = TimeValue.nsecToMSec(System.nanoTime() - timeNS);
 
             onGoingMerges.remove(onGoingMerge);
-            afterMerge(onGoingMerge);
+            afterMerge(onGoingMerge); // 去调用取消限速等
 
             currentMerges.dec();
             currentMergesNumDocs.dec(totalNumDocs);
@@ -190,9 +190,9 @@ class ElasticsearchConcurrentMergeScheduler extends ConcurrentMergeScheduler {
             this.setMaxMergesAndThreads(config.getMaxMergeCount(), config.getMaxThreadCount());
         }
         boolean isEnabled = getIORateLimitMBPerSec() != Double.POSITIVE_INFINITY;
-        if (config.isAutoThrottle() && isEnabled == false) {
+        if (config.isAutoThrottle() && isEnabled == false) { // 设置自动限流，但是实际还没达到瓶颈
             enableAutoIOThrottle();
-        } else if (config.isAutoThrottle() == false && isEnabled) {
+        } else if (config.isAutoThrottle() == false && isEnabled) { // 设置取消限流，但是实际已经达到写入瓶颈
             disableAutoIOThrottle();
         }
     }

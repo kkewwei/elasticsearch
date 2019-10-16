@@ -74,7 +74,7 @@ public class ThreadPool implements Scheduler, Closeable {
         public static final String ANALYZE = "analyze";
         public static final String WRITE = "write";
         public static final String SEARCH = "search";
-        public static final String SEARCH_THROTTLED = "search_throttled";
+        public static final String SEARCH_THROTTLED = "search_throttled";  // 查询frozen index类别的索引使用的
         public static final String MANAGEMENT = "management";
         public static final String FLUSH = "flush";
         public static final String REFRESH = "refresh";
@@ -340,7 +340,7 @@ public class ThreadPool implements Scheduler, Closeable {
      *         the ScheduledFuture will cannot interact with it.
      * @throws org.elasticsearch.common.util.concurrent.EsRejectedExecutionException if the task cannot be scheduled for execution
      */
-    @Override
+    @Override   //是只执行一次的
     public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executor) {
         if (!Names.SAME.equals(executor)) {
             command = new ThreadedRunnable(command, executor(executor));

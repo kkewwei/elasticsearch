@@ -25,12 +25,12 @@ import org.elasticsearch.transport.TransportRequest;
 
 import java.io.IOException;
 import java.util.Optional;
-
+// 来自别的节点发送到准master节点的加入集群请求
 public class JoinRequest extends TransportRequest {
 
     private final DiscoveryNode sourceNode;
 
-    private final Optional<Join> optionalJoin;
+    private final Optional<Join> optionalJoin; // 选票
 
     public JoinRequest(DiscoveryNode sourceNode, Optional<Join> optionalJoin) {
         assert optionalJoin.isPresent() == false || optionalJoin.get().getSourceNode().equals(sourceNode);

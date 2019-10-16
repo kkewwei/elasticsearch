@@ -145,7 +145,7 @@ public final class QueryParserHelper {
                 fields.put(fieldName, weight);
                 continue;
             }
-
+            // acceptMetadataField代表不接受元数据，比如_id等都是直接忽略的
             if (acceptMetadataField == false && fieldType.name().startsWith("_")) {
                 // Ignore metadata fields
                 continue;

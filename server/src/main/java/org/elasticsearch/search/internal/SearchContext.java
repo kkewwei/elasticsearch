@@ -77,7 +77,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * an external event.
  */
 // For reference why we use RefCounted here see #20095
-public abstract class SearchContext extends AbstractRefCounted implements Releasable {
+public abstract class SearchContext extends AbstractRefCounted implements Releasable {  // 也是个引用个数型
 
     public static final int DEFAULT_TERMINATE_AFTER = 0;
     public static final int TRACK_TOTAL_HITS_ACCURATE = Integer.MAX_VALUE;

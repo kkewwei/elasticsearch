@@ -52,8 +52,8 @@ public class Manifest implements ToXContentFragment {
     private static final long UNKNOWN_CLUSTER_STATE_VERSION = MISSING_CLUSTER_STATE_VERSION;
 
     private final long globalGeneration;
-    private final Map<Index, Long> indexGenerations;
-    private final long currentTerm;
+    private final Map<Index, Long> indexGenerations; // 索引，及其对应的版本号
+    private final long currentTerm;  // raft协议当前的term
     private final long clusterStateVersion;
 
     public Manifest(long currentTerm, long clusterStateVersion, long globalGeneration, Map<Index, Long> indexGenerations) {
@@ -127,7 +127,7 @@ public class Manifest implements ToXContentFragment {
 
         @Override
         public Manifest fromXContent(XContentParser parser) throws IOException {
-            return Manifest.fromXContent(parser);
+            return Manifest.fromXContent(parser); // 从文件中读取后，格式化全局state
         }
     };
 
@@ -136,7 +136,7 @@ public class Manifest implements ToXContentFragment {
      * Code below this comment is for XContent parsing/generation
      */
 
-    private static final ParseField CURRENT_TERM_PARSE_FIELD = new ParseField("current_term");
+    private static final ParseField CURRENT_TERM_PARSE_FIELD = new ParseField("current_term"); // 声明了文件有哪些字段
     private static final ParseField CLUSTER_STATE_VERSION_PARSE_FIELD = new ParseField("cluster_state_version");
     private static final ParseField GENERATION_PARSE_FIELD = new ParseField("generation");
     private static final ParseField INDEX_GENERATIONS_PARSE_FIELD = new ParseField("index_generations");

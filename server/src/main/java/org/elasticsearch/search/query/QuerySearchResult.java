@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 import static org.elasticsearch.common.lucene.Lucene.readTopDocs;
 import static org.elasticsearch.common.lucene.Lucene.writeTopDocs;
 
-public final class QuerySearchResult extends SearchPhaseResult {
+public final class QuerySearchResult extends SearchPhaseResult {  // 查询结果存放的地方
 
     private int from;
     private int size;

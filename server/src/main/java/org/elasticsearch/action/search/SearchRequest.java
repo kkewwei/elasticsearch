@@ -82,13 +82,13 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
 
     private Boolean requestCache;
 
-    private Boolean allowPartialSearchResults;
+    private Boolean allowPartialSearchResults; // 是否允许部分成功，例如一个查询请求，需要向3个分片发出请求，如果只有两个分片成功返回结果，另外一个出现故障，如果设置false，则会返回整体失败，如果设置为true，则会成功部分结果，默认为true
 
     private Scroll scroll;
 
-    private int batchedReduceSize = DEFAULT_BATCHED_REDUCE_SIZE;
+    private int batchedReduceSize = DEFAULT_BATCHED_REDUCE_SIZE;  // 在协调节点上，当n个分片返回响应结果后，就可以直接进行聚合或者直接返回。默认512, 防止过多分片影响聚合
 
-    private int maxConcurrentShardRequests = 0;
+    private int maxConcurrentShardRequests = 0; // 每次请求， 一个节点上最多几个分片能够被查询到， 默认为5个
 
     private int preFilterShardSize = DEFAULT_PRE_FILTER_SHARD_SIZE;
 
@@ -279,7 +279,7 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
      * returned as part of search hits with the alias of the cluster they came from.
      */
     @Nullable
-    String getLocalClusterAlias() {
+    String getLocalClusterAlias() { // 主要是跨集群查询时使用的
         return localClusterAlias;
     }
 

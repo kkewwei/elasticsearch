@@ -296,7 +296,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             new ThreadedActionListener<>(logger, threadPool, ThreadPool.Names.GENERIC, listener, false));
 
         for (TcpChannel channel : channels) {
-            channel.addConnectListener(channelsConnectedListener);
+            channel.addConnectListener(channelsConnectedListener);  // 当连接成功后，会调用channelsConnectedListener的onResponse
         }
 
         TimeValue connectTimeout = connectionProfile.getConnectTimeout();
@@ -956,26 +956,26 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             this.connectionProfile = connectionProfile;
             this.channels = channels;
             this.listener = listener;
-            this.countDown = new CountDown(channels.size());
+            this.countDown = new CountDown(channels.size()); // 每个管道都有一个
         }
 
         @Override
         public void onResponse(Void v) {
             // Returns true if all connections have completed successfully
-            if (countDown.countDown()) {
+            if (countDown.countDown()) {   // 每个channel都会调用一次，只有当所有调用完成
                 final TcpChannel handshakeChannel = channels.get(0);
-                try {
+                try { // 去握手下   这里会通过这个handshakeChannel发送一次握手
                     executeHandshake(node, handshakeChannel, connectionProfile, ActionListener.wrap(version -> {
-                        NodeChannels nodeChannels = new NodeChannels(node, channels, connectionProfile, version);
+                        NodeChannels nodeChannels = new NodeChannels(node, channels, connectionProfile, version); //握手成功后会执行这个函数
                         long relativeMillisTime = threadPool.relativeTimeInMillis();
                         nodeChannels.channels.forEach(ch -> {
                             // Mark the channel init time
                             ch.getChannelStats().markAccessed(relativeMillisTime);
-                            ch.addCloseListener(ActionListener.wrap(nodeChannels::close));
+                            ch.addCloseListener(ActionListener.wrap(nodeChannels::close)); // close关闭时会执行这个
                         });
                         keepAlive.registerNodeConnection(nodeChannels.channels, connectionProfile);
                         listener.onResponse(nodeChannels);
-                    }, e -> closeAndFail(e instanceof ConnectTransportException ?
+                    }, e -> closeAndFail(e instanceof ConnectTransportException ? //握手失败会执行这个
                         e : new ConnectTransportException(node, "general node connection failure", e))));
                 } catch (Exception ex) {
                     closeAndFail(ex);

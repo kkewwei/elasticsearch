@@ -66,12 +66,12 @@ public class ClusterBootstrapService {
     static final String BOOTSTRAP_PLACEHOLDER_PREFIX = "{bootstrap-placeholder}-";
 
     private static final Logger logger = LogManager.getLogger(ClusterBootstrapService.class);
-    private final Set<String> bootstrapRequirements;
+    private final Set<String> bootstrapRequirements; // 配置文件中的master列表
     @Nullable // null if discoveryIsConfigured()
-    private final TimeValue unconfiguredBootstrapTimeout;
+    private final TimeValue unconfiguredBootstrapTimeout; // 配置了master列表，则为nukk
     private final TransportService transportService;
     private final Supplier<Iterable<DiscoveryNode>> discoveredNodesSupplier;
-    private final BooleanSupplier isBootstrappedSupplier;
+    private final BooleanSupplier isBootstrappedSupplier;// 判断是否已经持久化上次有资格选举的节点情况，若持久化之后，cluster.initial_master_nodes参数作为master发现机制就没用了
     private final Consumer<VotingConfiguration> votingConfigurationConsumer;
     private final AtomicBoolean bootstrappingPermitted = new AtomicBoolean(true);
 
@@ -90,8 +90,8 @@ public class ClusterBootstrapService {
             }
             bootstrapRequirements = Collections.singleton(Node.NODE_NAME_SETTING.get(settings));
             unconfiguredBootstrapTimeout = null;
-        } else {
-            final List<String> initialMasterNodes = INITIAL_MASTER_NODES_SETTING.get(settings);
+        } else { // 进这里
+            final List<String> initialMasterNodes = INITIAL_MASTER_NODES_SETTING.get(settings); // 从配置文件中获取初始的maste列表
             bootstrapRequirements = unmodifiableSet(new LinkedHashSet<>(initialMasterNodes));
             if (bootstrapRequirements.size() != initialMasterNodes.size()) {
                 throw new IllegalArgumentException(
@@ -115,7 +115,7 @@ public class ClusterBootstrapService {
         final Set<DiscoveryNode> nodes = getDiscoveredNodes();
         if (bootstrappingPermitted.get() && transportService.getLocalNode().isMasterNode() && bootstrapRequirements.isEmpty() == false
             && isBootstrappedSupplier.getAsBoolean() == false) {
-
+            // cluster.initial_master_nodes可能不起作用
             final Tuple<Set<DiscoveryNode>,List<String>> requirementMatchingResult;
             try {
                 requirementMatchingResult = checkRequirements(nodes);
@@ -144,11 +144,11 @@ public class ClusterBootstrapService {
     }
 
     void scheduleUnconfiguredBootstrap() {
-        if (unconfiguredBootstrapTimeout == null) {
+        if (unconfiguredBootstrapTimeout == null) { // 若没有配置
             return;
         }
 
-        if (transportService.getLocalNode().isMasterNode() == false) {
+        if (transportService.getLocalNode().isMasterNode() == false) { // 如不是master节点属性，也不会返回
             return;
         }
 
@@ -158,9 +158,9 @@ public class ClusterBootstrapService {
         transportService.getThreadPool().scheduleUnlessShuttingDown(unconfiguredBootstrapTimeout, Names.GENERIC, new Runnable() {
             @Override
             public void run() {
-                final Set<DiscoveryNode> discoveredNodes = getDiscoveredNodes();
+                final Set<DiscoveryNode> discoveredNodes = getDiscoveredNodes(); //
                 logger.debug("performing best-effort cluster bootstrapping with {}", discoveredNodes);
-                startBootstrap(discoveredNodes, emptyList());
+                startBootstrap(discoveredNodes, emptyList()); //进来
             }
 
             @Override
@@ -179,7 +179,7 @@ public class ClusterBootstrapService {
         assert discoveryNodes.stream().allMatch(DiscoveryNode::isMasterNode) : discoveryNodes;
         assert unsatisfiedRequirements.size() < discoveryNodes.size() : discoveryNodes + " smaller than " + unsatisfiedRequirements;
         if (bootstrappingPermitted.compareAndSet(true, false)) {
-            doBootstrap(new VotingConfiguration(Stream.concat(discoveryNodes.stream().map(DiscoveryNode::getId),
+            doBootstrap(new VotingConfiguration(Stream.concat(discoveryNodes.stream().map(DiscoveryNode::getId), // 进来
                 unsatisfiedRequirements.stream().map(s -> BOOTSTRAP_PLACEHOLDER_PREFIX + s))
                 .collect(Collectors.toSet())));
         }
@@ -192,7 +192,7 @@ public class ClusterBootstrapService {
     private void doBootstrap(VotingConfiguration votingConfiguration) {
         assert transportService.getLocalNode().isMasterNode();
 
-        try {
+        try {//votingConfigurationConsumer Lambda 表达式在节点初始化时传入，具体对应函数为 Coordinator 的 setInitialConfiguration()：
             votingConfigurationConsumer.accept(votingConfiguration);
         } catch (Exception e) {
             logger.warn(new ParameterizedMessage("exception when bootstrapping with {}, rescheduling", votingConfiguration), e);
@@ -200,7 +200,7 @@ public class ClusterBootstrapService {
                 new Runnable() {
                     @Override
                     public void run() {
-                        doBootstrap(votingConfiguration);
+                        doBootstrap(votingConfiguration);// 如果发生了异常，则重复执行
                     }
 
                     @Override
@@ -213,7 +213,7 @@ public class ClusterBootstrapService {
     }
 
     private static boolean matchesRequirement(DiscoveryNode discoveryNode, String requirement) {
-        return discoveryNode.getName().equals(requirement)
+        return discoveryNode.getName().equals(requirement) // 或者是配置文件中的master
             || discoveryNode.getAddress().toString().equals(requirement)
             || discoveryNode.getAddress().getAddress().equals(requirement);
     }
@@ -221,9 +221,9 @@ public class ClusterBootstrapService {
     private Tuple<Set<DiscoveryNode>,List<String>> checkRequirements(Set<DiscoveryNode> nodes) {
         final Set<DiscoveryNode> selectedNodes = new HashSet<>();
         final List<String> unmatchedRequirements = new ArrayList<>();
-        for (final String bootstrapRequirement : bootstrapRequirements) {
+        for (final String bootstrapRequirement : bootstrapRequirements) { // 遍历每一个配置文件中的master
             final Set<DiscoveryNode> matchingNodes
-                = nodes.stream().filter(n -> matchesRequirement(n, bootstrapRequirement)).collect(Collectors.toSet());
+                = nodes.stream().filter(n -> matchesRequirement(n, bootstrapRequirement)).collect(Collectors.toSet()); // 从nodes中过滤属于配置文件中的master
 
             if (matchingNodes.size() == 0) {
                 unmatchedRequirements.add(bootstrapRequirement);

@@ -164,7 +164,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
             }
         }
     }
-
+    // 日常所有的统计
     public CommonStats(IndicesQueryCache indicesQueryCache, IndexShard indexShard, CommonStatsFlags flags) {
         CommonStatsFlags.Flag[] setFlags = flags.getFlags();
         for (CommonStatsFlags.Flag flag : setFlags) {

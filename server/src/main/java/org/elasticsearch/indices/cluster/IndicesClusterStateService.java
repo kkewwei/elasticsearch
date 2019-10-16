@@ -200,7 +200,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     @Override
     protected void doStart() {
         // Doesn't make sense to manage shards on non-master and non-data nodes
-        if (DiscoveryNode.isDataNode(settings) || DiscoveryNode.isMasterNode(settings)) {
+        if (DiscoveryNode.isDataNode(settings) || DiscoveryNode.isMasterNode(settings)) { // 只有在master或者在data节点上才起效
             clusterService.addHighPriorityApplier(this);
         }
     }
@@ -247,7 +247,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
         updateIndices(event); // can also fail shards, but these are then guaranteed to be in failedShardsCache
 
-        createIndices(state);
+        createIndices(state); // 在本地创建索引结构
 
         createOrUpdateShards(state);
     }
@@ -537,23 +537,23 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         }
         // create map of indices to create with shards to fail if index creation fails
         final Map<Index, List<ShardRouting>> indicesToCreate = new HashMap<>();
-        for (ShardRouting shardRouting : localRoutingNode) {
+        for (ShardRouting shardRouting : localRoutingNode) { // 遍历过滤所有的本地分片
             if (failedShardsCache.containsKey(shardRouting.shardId()) == false) {
                 final Index index = shardRouting.index();
                 if (indicesService.indexService(index) == null) {
-                    indicesToCreate.computeIfAbsent(index, k -> new ArrayList<>()).add(shardRouting);
+                    indicesToCreate.computeIfAbsent(index, k -> new ArrayList<>()).add(shardRouting);// 每个索引->分片进行归类
                 }
             }
         }
 
-        for (Map.Entry<Index, List<ShardRouting>> entry : indicesToCreate.entrySet()) {
+        for (Map.Entry<Index, List<ShardRouting>> entry : indicesToCreate.entrySet()) { // 遍历每个本节点上的索引
             final Index index = entry.getKey();
             final IndexMetaData indexMetaData = state.metaData().index(index);
             logger.debug("[{}] creating index", index);
 
             AllocatedIndex<? extends Shard> indexService = null;
             try {
-                indexService = indicesService.createIndex(indexMetaData, buildInIndexListener);
+                indexService = indicesService.createIndex(indexMetaData, buildInIndexListener);// 建立IndexService
                 if (indexService.updateMapping(null, indexMetaData) && sendRefreshMapping) {
                     nodeMappingRefreshAction.nodeMappingRefresh(state.nodes().getMasterNode(),
                         new NodeMappingRefreshAction.NodeMappingRefreshRequest(indexMetaData.getIndex().getName(),

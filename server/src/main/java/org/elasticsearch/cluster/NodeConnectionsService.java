@@ -363,7 +363,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         }
 
         Runnable connect(@Nullable ActionListener<Void> listener) {
-            return addListenerAndStartActivity(listener, ActivityType.CONNECTING, connectActivity,
+            return addListenerAndStartActivity(listener, ActivityType.CONNECTING, connectActivity, // connectActivity是Runnable
                 "disconnection cancelled by reconnection");
         }
 

@@ -253,7 +253,7 @@ public class IndexRequest extends ReplicatedWriteRequest<IndexRequest> implement
     @Deprecated
     @Override
     public String type() {
-        if (type == null) {
+        if (type == null) { // 若type不为_doc，那么就不是single_mapping_name
             return MapperService.SINGLE_MAPPING_NAME;
         }
         return type;

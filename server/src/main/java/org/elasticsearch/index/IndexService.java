@@ -100,7 +100,7 @@ import java.util.function.Supplier;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
+// 每个索引都会启动一个该类
 public class IndexService extends AbstractIndexComponent implements IndicesClusterStateService.AllocatedIndex<IndexShard> {
 
     private final IndexEventListener eventListener;
@@ -178,7 +178,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
             this.bitsetFilterCache = null;
             this.warmer = null;
             this.indexCache = null;
-        } else {
+        } else {  // 索引并没有关闭
             this.mapperService = new MapperService(indexSettings, registry.build(indexSettings), xContentRegistry, similarityService,
                 mapperRegistry,
                 // we parse all percolator queries as they would be parsed on shard 0

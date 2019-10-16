@@ -139,13 +139,13 @@ public class VotingOnlyNodePlugin extends Plugin implements DiscoveryPlugin, Net
     }
 
     static class VotingOnlyNodeElectionStrategy extends ElectionStrategy {
-
+        // 跳到这里
         @Override
         public boolean satisfiesAdditionalQuorumConstraints(DiscoveryNode localNode, long localCurrentTerm, long localAcceptedTerm,
                                                             long localAcceptedVersion, VotingConfiguration lastCommittedConfiguration,
                                                             VotingConfiguration lastAcceptedConfiguration, VoteCollection joinVotes) {
             // if local node is voting only, have additional checks on election quorum definition
-            if (isVotingOnlyNode(localNode)) {
+            if (isVotingOnlyNode(localNode)) {// 除非配置了voting_only属性
                 // if all votes are from voting only nodes, do not elect as master (no need to transfer state)
                 if (joinVotes.nodes().stream().filter(DiscoveryNode::isMasterNode).allMatch(VotingOnlyNodePlugin::isVotingOnlyNode)) {
                     return false;

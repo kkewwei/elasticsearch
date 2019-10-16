@@ -188,7 +188,7 @@ public class IndicesService extends AbstractLifecycleComponent
     private final ScriptService scriptService;
     private final ClusterService clusterService;
     private final Client client;
-    private volatile Map<String, IndexService> indices = emptyMap();
+    private volatile Map<String, IndexService> indices = emptyMap(); // 每个索引在本地都会有个该类
     private final Map<Index, List<PendingDelete>> pendingDeletes = new HashMap<>();
     private final AtomicInteger numUncompletedDeletes = new AtomicInteger();
     private final OldShardsStats oldShardsStats = new OldShardsStats();
@@ -497,7 +497,7 @@ public class IndicesService extends AbstractLifecycleComponent
         };
         finalListeners.add(onStoreClose);
         finalListeners.add(oldShardsStats);
-        final IndexService indexService =
+        final IndexService indexService =  // 索引创建时候会创建IndexService
                 createIndexService(
                         CREATE_INDEX,
                         indexMetaData,

@@ -58,7 +58,7 @@ import java.util.function.Consumer;
  * fairly lenient, possibly allowing multiple checks to fail before considering the leader to be faulty, to allow for the leader to
  * temporarily stand down on occasion, e.g. if it needs to move to a higher term. On deciding that the leader has failed a follower will
  * become a candidate and attempt to become a leader itself.
- */
+ */  // 对master的周期性ping, 就是以前的MasterFaultDetection, 另一个是FollowersChecker。
 public class LeaderChecker {
 
     private static final Logger logger = LogManager.getLogger(LeaderChecker.class);

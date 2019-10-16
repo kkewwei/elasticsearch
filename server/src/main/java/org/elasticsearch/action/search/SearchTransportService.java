@@ -132,7 +132,7 @@ public class SearchTransportService {
         final boolean fetchDocuments = request.numberOfShards() == 1;
         Writeable.Reader<SearchPhaseResult> reader = fetchDocuments ? QueryFetchSearchResult::new : QuerySearchResult::new;
 
-        final ActionListener handler = responseWrapper.apply(connection, listener);
+        final ActionListener handler = responseWrapper.apply(connection, listener);  // 跑到SearchExecutionStatsCollector.makeWrapper处建立SearchExecutionStatsCollector对象
         transportService.sendChildRequest(connection, QUERY_ACTION_NAME, request, task,
                 new ConnectionCountingHandler<>(handler, reader, clientConnections, connection.getNode().getId()));
     }

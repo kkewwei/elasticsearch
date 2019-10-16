@@ -195,7 +195,7 @@ abstract class TopDocsCollectorContext extends QueryCollectorContext {
             result.topDocs(new TopDocsAndMaxScore(topDocs, maxScoreSupplier.get()), sortFmt);
         }
     }
-
+    // 创建collector tree树的话，其一定为头
     abstract static class SimpleTopDocsCollectorContext extends TopDocsCollectorContext {
 
         private static TopDocsCollector<?> createCollector(@Nullable SortAndFormats sortAndFormats, int numHits,
@@ -249,7 +249,7 @@ abstract class TopDocsCollectorContext extends QueryCollectorContext {
                 topDocsCollector = createCollector(sortAndFormats, numHits, searchAfter, 1);
                 topDocsSupplier = new CachedSupplier<>(topDocsCollector::topDocs);
                 totalHitsSupplier = () -> new TotalHits(0, TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO);
-            } else {
+            } else { // 一般跑到这里
                 // implicit total hit counts are valid only when there is no filter collector in the chain
                 final int hitCount = hasFilterCollector ? -1 : shortcutTotalHitCount(reader, query);
                 if (hitCount == -1) {
@@ -357,7 +357,7 @@ abstract class TopDocsCollectorContext extends QueryCollectorContext {
      * Returns query total hit count if the <code>query</code> is a {@link MatchAllDocsQuery}
      * or a {@link TermQuery} and the <code>reader</code> has no deletions,
      * -1 otherwise.
-     */
+     */  // 这个shard所有的Segment
     static int shortcutTotalHitCount(IndexReader reader, Query query) throws IOException {
         while (true) {
             // remove wrappers that don't matter for counts
@@ -416,9 +416,9 @@ abstract class TopDocsCollectorContext extends QueryCollectorContext {
     static TopDocsCollectorContext createTopDocsCollectorContext(SearchContext searchContext,
                                                                  IndexReader reader,
                                                                  boolean hasFilterCollector) throws IOException {
-        final Query query = searchContext.query();
+        final Query query = searchContext.query(); // range范围解析成了BoostQuery
         // top collectors don't like a size of 0
-        final int totalNumDocs = Math.max(1, reader.numDocs());
+        final int totalNumDocs = Math.max(1, reader.numDocs());  // 该shard总的文档书
         if (searchContext.size() == 0) {
             // no matter what the value of from is
             return new EmptyTopDocsCollectorContext(reader, query, searchContext.trackTotalHitsUpTo(), hasFilterCollector);
@@ -436,15 +436,15 @@ abstract class TopDocsCollectorContext extends QueryCollectorContext {
             boolean trackScores = searchContext.sort() == null ? true : searchContext.trackScores();
             int numDocs = Math.min(searchContext.from() + searchContext.size(), totalNumDocs);
             return new CollapsingTopDocsCollectorContext(searchContext.collapse(), searchContext.sort(), numDocs, trackScores);
-        } else {
-            int numDocs = Math.min(searchContext.from() + searchContext.size(), totalNumDocs);
-            final boolean rescore = searchContext.rescore().isEmpty() == false;
-            if (rescore) {
+        } else { // 跑到这里
+            int numDocs = Math.min(searchContext.from() + searchContext.size(), totalNumDocs); // 实际要获取的文档数
+            final boolean rescore = searchContext.rescore().isEmpty() == false; // rescore为空， 为false
+            if (rescore) { // 为false
                 assert searchContext.sort() == null;
                 for (RescoreContext rescoreContext : searchContext.rescore()) {
                     numDocs = Math.max(numDocs, rescoreContext.getWindowSize());
                 }
-            }
+            } // 最终跑到这里
             return new SimpleTopDocsCollectorContext(reader, query, searchContext.sort(), searchContext.searchAfter(), numDocs,
                 searchContext.trackScores(), searchContext.trackTotalHitsUpTo(), hasFilterCollector) {
                 @Override

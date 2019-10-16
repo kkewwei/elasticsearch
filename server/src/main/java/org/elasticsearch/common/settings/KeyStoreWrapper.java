@@ -215,7 +215,7 @@ public class KeyStoreWrapper implements SecureSettings {
             return null;
         }
 
-        SimpleFSDirectory directory = new SimpleFSDirectory(configDir);
+        SimpleFSDirectory directory = new SimpleFSDirectory(configDir); // 很普通的，使用的是linux open64()打开的文件，和mmap原理还不一样（大批量数据使用mmap）。
         try (IndexInput indexInput = directory.openInput(KEYSTORE_FILENAME, IOContext.READONCE)) {
             ChecksumIndexInput input = new BufferedChecksumIndexInput(indexInput);
             final int formatVersion;

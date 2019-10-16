@@ -213,7 +213,7 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
         if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
             token = parser.currentToken();
         } else {
-            token = parser.nextToken();
+            token = parser.nextToken(); //开始符合,类似 {
             if (token != XContentParser.Token.START_OBJECT) {
                 throw new XContentParseException(parser.getTokenLocation(), "[" + name  + "] Expected START_OBJECT but was: " + token);
             }
@@ -222,12 +222,12 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
         FieldParser fieldParser = null;
         String currentFieldName = null;
         XContentLocation currentPosition = null;
-        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
-            if (token == XContentParser.Token.FIELD_NAME) {
-                currentFieldName = parser.currentName();
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {  // 等到结束符合    }
+            if (token == XContentParser.Token.FIELD_NAME) { // 如果是字段名称，则
+                currentFieldName = parser.currentName(); // 获取字段名称
                 currentPosition = parser.getTokenLocation();
-                fieldParser = fieldParserMap.get(currentFieldName);
-            } else {
+                fieldParser = fieldParserMap.get(currentFieldName);  // 获取字段解析器
+            } else {  // 开始读取
                 if (currentFieldName == null) {
                     throw new XContentParseException(parser.getTokenLocation(), "[" + name  + "] no field found");
                 }
@@ -235,7 +235,7 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
                     unknownFieldParser.acceptUnknownField(name, currentFieldName, currentPosition, parser, value, context);
                 } else {
                     fieldParser.assertSupports(name, parser, currentFieldName);
-                    parseSub(parser, fieldParser, currentFieldName, value, context);
+                    parseSub(parser, fieldParser, currentFieldName, value, context); // 开始真正解析
                 }
                 fieldParser = null;
             }
@@ -267,7 +267,7 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
         }
         FieldParser fieldParser = new FieldParser(p, type.supportedTokens(), parseField, type);
         for (String fieldValue : parseField.getAllNamesIncludedDeprecated()) {
-            fieldParserMap.putIfAbsent(fieldValue, fieldParser);
+            fieldParserMap.putIfAbsent(fieldValue, fieldParser);  // 会放入每个FieldParser
         }
     }
 
@@ -387,10 +387,10 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
                 "[" + name  + "] failed to parse field [" + currentFieldName + "]", ex);
         }
     }
-
+    // parser = SmileXContentParser
     private void parseSub(XContentParser parser, FieldParser fieldParser, String currentFieldName, Value value, Context context)
             throws IOException {
-        final XContentParser.Token token = parser.currentToken();
+        final XContentParser.Token token = parser.currentToken(); // JsonXContentParser
         switch (token) {
             case START_OBJECT:
                 parseValue(parser, fieldParser, currentFieldName, value, context);
@@ -429,7 +429,7 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
             case VALUE_BOOLEAN:
             case VALUE_EMBEDDED_OBJECT:
             case VALUE_NULL:
-                parseValue(parser, fieldParser, currentFieldName, value, context);
+                parseValue(parser, fieldParser, currentFieldName, value, context); // 解析字段值
         }
     }
 

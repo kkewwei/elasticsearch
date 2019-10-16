@@ -71,9 +71,9 @@ public class JoinHelper {
 
     private static final Logger logger = LogManager.getLogger(JoinHelper.class);
 
-    public static final String JOIN_ACTION_NAME = "internal:cluster/coordination/join";
+    public static final String JOIN_ACTION_NAME = "internal:cluster/coordination/join"; // 2. 然后coordinator发送申请加入集群的信号
     public static final String VALIDATE_JOIN_ACTION_NAME = "internal:cluster/coordination/join/validate";
-    public static final String START_JOIN_ACTION_NAME = "internal:cluster/coordination/start_join";
+    public static final String START_JOIN_ACTION_NAME = "internal:cluster/coordination/start_join"; // 1. 向peer节点发送信号，可以加入本集群了。
 
     // the timeout for each join attempt
     public static final Setting<TimeValue> JOIN_TIMEOUT_SETTING =
@@ -83,9 +83,9 @@ public class JoinHelper {
     private final MasterService masterService;
     private final TransportService transportService;
     private final JoinTaskExecutor joinTaskExecutor;
-    private final TimeValue joinTimeout;
+    private final TimeValue joinTimeout;  // 60s
 
-    private final Set<Tuple<DiscoveryNode, JoinRequest>> pendingOutgoingJoins = Collections.synchronizedSet(new HashSet<>());
+    private final Set<Tuple<DiscoveryNode, JoinRequest>> pendingOutgoingJoins = Collections.synchronizedSet(new HashSet<>()); // 本节点向master属性的节点发送加入集群的列表
 
     private AtomicReference<FailedJoinAttempt> lastFailedJoinAttempt = new AtomicReference<>();
 
@@ -118,15 +118,15 @@ public class JoinHelper {
             }
 
         };
-
+       // joinHandler = 就是Coordinator.handleJoinRequest()
         transportService.registerRequestHandler(JOIN_ACTION_NAME, ThreadPool.Names.GENERIC, false, false, JoinRequest::new,
             (request, channel, task) -> joinHandler.accept(request, transportJoinCallback(request, channel)));
 
         transportService.registerRequestHandler(START_JOIN_ACTION_NAME, Names.GENERIC, false, false,
-            StartJoinRequest::new,
+            StartJoinRequest::new, // 空的
             (request, channel, task) -> {
                 final DiscoveryNode destination = request.getSourceNode();
-                sendJoinRequest(destination, Optional.of(joinLeaderInTerm.apply(request)));
+                sendJoinRequest(destination, Optional.of(joinLeaderInTerm.apply(request))); // 若term比目标小，则直接抛异常返回去
                 channel.sendResponse(Empty.INSTANCE);
             });
 
@@ -135,11 +135,11 @@ public class JoinHelper {
             (request, channel, task) -> {
                 final ClusterState localState = currentStateSupplier.get();
                 if (localState.metaData().clusterUUIDCommitted() &&
-                    localState.metaData().clusterUUID().equals(request.getState().metaData().clusterUUID()) == false) {
+                    localState.metaData().clusterUUID().equals(request.getState().metaData().clusterUUID()) == false) { // 对比UUID
                     throw new CoordinationStateRejectedException("join validation on cluster state" +
                         " with a different cluster uuid " + request.getState().metaData().clusterUUID() +
                         " than local cluster uuid " + localState.metaData().clusterUUID() + ", rejecting");
-                }
+                } //是验证器joinValidators
                 joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), request.getState()));
                 channel.sendResponse(Empty.INSTANCE);
             });
@@ -225,12 +225,12 @@ public class JoinHelper {
             lastFailedJoinAttempt.compareAndSet(attempt, null);
         }
     }
-
-    public void sendJoinRequest(DiscoveryNode destination, Optional<Join> optionalJoin) {
+    // 附属节点需要发送： coordinator申请加入目前节点所在的集群。或者探测发现了master，或者master主动发送请求让加入
+    public void sendJoinRequest(DiscoveryNode destination, Optional<Join> optionalJoin) { // 每个term只有一个发票
         assert destination.isMasterNode() : "trying to join master-ineligible " + destination;
         final JoinRequest joinRequest = new JoinRequest(transportService.getLocalNode(), optionalJoin);
         final Tuple<DiscoveryNode, JoinRequest> dedupKey = Tuple.tuple(destination, joinRequest);
-        if (pendingOutgoingJoins.add(dedupKey)) {
+        if (pendingOutgoingJoins.add(dedupKey)) { // 可以尝试加入
             logger.debug("attempting to join {} with {}", destination, joinRequest);
             transportService.sendRequest(destination, JOIN_ACTION_NAME, joinRequest,
                 TransportRequestOptions.builder().withTimeout(joinTimeout).build(),
@@ -241,7 +241,7 @@ public class JoinHelper {
                     }
 
                     @Override
-                    public void handleResponse(Empty response) {
+                    public void handleResponse(Empty response) { // 接到master的同意
                         pendingOutgoingJoins.remove(dedupKey);
                         logger.debug("successfully joined {} with {}", destination, joinRequest);
                         lastFailedJoinAttempt.set(null);
@@ -264,7 +264,7 @@ public class JoinHelper {
             logger.debug("already attempting to join {} with request {}, not sending request", destination, joinRequest);
         }
     }
-
+    // 向peer节点发送信号，可以加入本集群了。
     void sendStartJoinRequest(final StartJoinRequest startJoinRequest, final DiscoveryNode destination) {
         assert startJoinRequest.getSourceNode().isMasterNode()
             : "sending start-join request for master-ineligible " + startJoinRequest.getSourceNode();
@@ -276,12 +276,12 @@ public class JoinHelper {
                 }
 
                 @Override
-                public void handleResponse(Empty response) {
+                public void handleResponse(Empty response) { //
                     logger.debug("successful response to {} from {}", startJoinRequest, destination);
                 }
 
                 @Override
-                public void handleException(TransportException exp) {
+                public void handleException(TransportException exp) { //若term比目标小，则直接炮异常返回到（要别人加入本集群的节点上）
                     logger.debug(new ParameterizedMessage("failure in response to {} from {}", startJoinRequest, destination), exp);
                 }
 
@@ -350,7 +350,7 @@ public class JoinHelper {
             return "LeaderJoinAccumulator";
         }
     }
-
+    // 初始化的关闭，啥都不做
     static class InitialJoinAccumulator implements JoinAccumulator {
         @Override
         public void handleJoinRequest(DiscoveryNode sender, JoinCallback joinCallback) {
@@ -378,7 +378,7 @@ public class JoinHelper {
 
     class CandidateJoinAccumulator implements JoinAccumulator {
 
-        private final Map<DiscoveryNode, JoinCallback> joinRequestAccumulator = new HashMap<>();
+        private final Map<DiscoveryNode, JoinCallback> joinRequestAccumulator = new HashMap<>(); // 还不是maseter时，选择加入集群的节点
         boolean closed;
 
         @Override

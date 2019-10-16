@@ -61,7 +61,7 @@ final class TransportHandshaker {
 
     void sendHandshake(long requestId, DiscoveryNode node, TcpChannel channel, TimeValue timeout, ActionListener<Version> listener) {
         numHandshakes.inc();
-        final HandshakeResponseHandler handler = new HandshakeResponseHandler(requestId, version, listener);
+        final HandshakeResponseHandler handler = new HandshakeResponseHandler(requestId, version, listener); // 这里是handshake响应时的接口
         pendingHandshakes.put(requestId, handler);
         channel.addCloseListener(ActionListener.wrap(
             () -> handler.handleLocalException(new TransportException("handshake failed because connection reset"))));
@@ -71,8 +71,8 @@ final class TransportHandshaker {
             // we also have no payload on the request but the response will contain the actual version of the node we talk
             // to as the payload.
             final Version minCompatVersion = version.minimumCompatibilityVersion();
-            handshakeRequestSender.sendRequest(node, channel, requestId, minCompatVersion);
-
+            handshakeRequestSender.sendRequest(node, channel, requestId, minCompatVersion);// 响应是通过pendingHandshakes来实现的
+            // 握手超时，就直接抛这个异常。
             threadPool.schedule(
                 () -> handler.handleLocalException(new ConnectTransportException(node, "handshake_timeout[" + timeout + "]")),
                 timeout,
@@ -132,7 +132,7 @@ final class TransportHandshaker {
 
         @Override
         public void handleResponse(HandshakeResponse response) {
-            if (isDone.compareAndSet(false, true)) {
+            if (isDone.compareAndSet(false, true)) { // 首先标记这个hander完成了
                 Version version = response.responseVersion;
                 if (currentVersion.isCompatible(version) == false) {
                     listener.onFailure(new IllegalStateException("Received message from unsupported version: [" + version

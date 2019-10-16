@@ -448,7 +448,7 @@ public class BoolQueryBuilder extends AbstractQueryBuilder<BoolQueryBuilder> {
                                           Consumer<QueryBuilder> consumer) throws IOException {
         boolean changed = false;
         for (QueryBuilder builder : builders) {
-            QueryBuilder result = builder.rewrite(queryRewriteContext);
+            QueryBuilder result = builder.rewrite(queryRewriteContext); // 会跑到AbstractQueryBuilder.rewrite
             if (result != builder) {
                 changed = true;
             }

@@ -64,7 +64,7 @@ public final class EngineConfig {
     private final ThreadPool threadPool;
     private final Engine.Warmer warmer;
     private final Store store;
-    private final MergePolicy mergePolicy;
+    private final MergePolicy mergePolicy; // EsTieredMergePolicy
     private final Analyzer analyzer;
     private final Similarity similarity;
     private final CodecService codecService;
