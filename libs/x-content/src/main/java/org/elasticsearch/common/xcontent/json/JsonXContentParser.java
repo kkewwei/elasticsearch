@@ -163,7 +163,7 @@ public class JsonXContentParser extends AbstractXContentParser {
 
     @Override
     public long doLongValue() throws IOException {
-        return parser.getLongValue();
+        return parser.getLongValue();// parser = SmileParser
     }
 
     @Override

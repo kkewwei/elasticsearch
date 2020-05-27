@@ -104,7 +104,7 @@ public interface ActionListener<Response> {
      * @param <T> Type of the delegating listener's response
      * @param <R> Type of the wrapped listeners
      * @return Delegating listener
-     */
+     */ // 接受异常回调的地方
     static <T, R> ActionListener<T> delegateFailure(ActionListener<R> delegate, BiConsumer<ActionListener<R>, T> bc) {
         return new ActionListener<T>() {
 
