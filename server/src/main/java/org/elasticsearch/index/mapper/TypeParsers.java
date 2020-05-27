@@ -216,7 +216,7 @@ public class TypeParsers {
 
     /**
      * Parse common field attributes such as {@code doc_values} or {@code store}.
-     */
+     *///看下字段解析
     public static void parseField(FieldMapper.Builder<?,?> builder, String name, Map<String, Object> fieldNode,
                                   Mapper.TypeParser.ParserContext parserContext) {
         parseMeta(builder, name, fieldNode);

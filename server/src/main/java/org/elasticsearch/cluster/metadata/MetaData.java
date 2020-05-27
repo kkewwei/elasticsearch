@@ -85,7 +85,7 @@ import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.common.settings.Settings.readSettingsFromStream;
 import static org.elasticsearch.common.settings.Settings.writeSettingsToStream;
-
+  // MetaData中没有data/master节点情况
 public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, ToXContentFragment {
 
     private static final Logger logger = LogManager.getLogger(MetaData.class);
@@ -1454,11 +1454,11 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, To
             builder.endObject();
             return Strings.toString(builder);
         }
-
+        // 这里是如何写入object
         public static void toXContent(MetaData metaData, XContentBuilder builder, ToXContent.Params params) throws IOException {
             XContentContext context = XContentContext.valueOf(params.param(CONTEXT_MODE_PARAM, "API"));
 
-            builder.startObject("meta-data");
+            builder.startObject("meta-data");  // json过程
 
             builder.field("version", metaData.version());
             builder.field("cluster_uuid", metaData.clusterUUID);
@@ -1503,14 +1503,14 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, To
             }
             builder.endObject();
         }
-
+        // 这里是如何读取出来
         public static MetaData fromXContent(XContentParser parser) throws IOException {
             Builder builder = new Builder();
 
             // we might get here after the meta-data element, or on a fresh parser
             XContentParser.Token token = parser.currentToken();
             String currentFieldName = parser.currentName();
-            if (!"meta-data".equals(currentFieldName)) {
+            if (!"meta-data".equals(currentFieldName)) {  // 首先读取meta-data
                 token = parser.nextToken();
                 if (token == XContentParser.Token.START_OBJECT) {
                     // move to the field name (meta-data)
@@ -1523,7 +1523,7 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, To
                 }
                 currentFieldName = parser.currentName();
             }
-
+            //
             if (!"meta-data".equals(parser.currentName())) {
                 throw new IllegalArgumentException("Expected [meta-data] as a field name but got " + currentFieldName);
             }
@@ -1587,11 +1587,11 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, To
     /**
      * State format for {@link MetaData} to write to and load from disk
      */
-    public static final MetaDataStateFormat<MetaData> FORMAT = new MetaDataStateFormat<MetaData>(GLOBAL_STATE_FILE_PREFIX) {
+    public static final MetaDataStateFormat<MetaData> FORMAT = new MetaDataStateFormat<MetaData>(GLOBAL_STATE_FILE_PREFIX) { // globale-
 
         @Override
         public void toXContent(XContentBuilder builder, MetaData state) throws IOException {
-            Builder.toXContent(state, builder, FORMAT_PARAMS);
+            Builder.toXContent(state, builder, FORMAT_PARAMS); // 写入过程
         }
 
         @Override

@@ -48,11 +48,11 @@ public class InboundHandler {
     private final ThreadPool threadPool;
     private final OutboundHandler outboundHandler;
     private final CircuitBreakerService circuitBreakerService;
-    private final InboundMessage.Reader reader;
+    private final InboundMessage.Reader reader; // 有解码作用
     private final TransportHandshaker handshaker;
     private final TransportKeepAlive keepAlive;
 
-    private final Transport.ResponseHandlers responseHandlers = new Transport.ResponseHandlers();
+    private final Transport.ResponseHandlers responseHandlers = new Transport.ResponseHandlers();  // 这个就是所有response requestid存储类
     private volatile Map<String, RequestHandlerRegistry<? extends TransportRequest>> requestHandlers = Collections.emptyMap();
     private volatile TransportMessageListener messageListener = TransportMessageListener.NOOP_LISTENER;
 
@@ -99,7 +99,7 @@ public class InboundHandler {
         TransportLogger.logInboundMessage(channel, message);
         readBytesMetric.inc(message.length() + TcpHeader.MARKER_BYTES_SIZE + TcpHeader.MESSAGE_LENGTH_SIZE);
         // Message length of 0 is a ping
-        if (message.length() != 0) {
+        if (message.length() != 0) { // 若长度为0，就是一个ping
             messageReceived(message, channel);
         } else {
             keepAlive.receiveKeepAlive(channel);
@@ -111,11 +111,11 @@ public class InboundHandler {
 
         ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext existing = threadContext.stashContext();
-             InboundMessage message = reader.deserialize(reference)) {
+             InboundMessage message = reader.deserialize(reference)) { // 读取大部分header:r： es + length + request_id + status + version
             // Place the context with the headers from the message
             message.getStoredContext().restore();
             threadContext.putTransient("_remote_address", remoteAddress);
-            if (message.isRequest()) {
+            if (message.isRequest()) { // handchake也进来
                 handleRequest(channel, (InboundMessage.Request) message, reference.length());
             } else {
                 final TransportResponseHandler<?> handler;

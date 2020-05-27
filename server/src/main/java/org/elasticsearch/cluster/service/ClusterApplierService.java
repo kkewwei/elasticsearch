@@ -103,7 +103,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
 
     private final Queue<NotifyTimeout> onGoingTimeouts = ConcurrentCollections.newQueue();
 
-    private final AtomicReference<ClusterState> state; // last applied state
+    private final AtomicReference<ClusterState> state; // last applied state  本节点维持的一个state
 
     private final String nodeName;
 
@@ -331,7 +331,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
     public void onNewClusterState(final String source, final Supplier<ClusterState> clusterStateSupplier,
                                   final ClusterApplyListener listener) {
         Function<ClusterState, ClusterState> applyFunction = currentState -> {
-            ClusterState nextState = clusterStateSupplier.get();
+            ClusterState nextState = clusterStateSupplier.get(); // 这里的executor并没有说做任何事情
             if (nextState != null) {
                 return nextState;
             } else {
@@ -404,7 +404,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         final ClusterState newClusterState;
         try {
             try (Releasable ignored = stopWatch.timing("running task [" + task.source + ']')) {
-                newClusterState = task.apply(previousClusterState);
+                newClusterState = task.apply(previousClusterState); // 会去真正执行每个task具体是如何修改clusteState的
             }
         } catch (Exception e) {
             TimeValue executionTime = TimeValue.timeValueMillis(Math.max(0, currentTimeInMillis() - startTimeMS));
@@ -429,7 +429,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
                 logger.debug("cluster state updated, version [{}], source [{}]", newClusterState.version(), task.source);
             }
             try {
-                applyChanges(task, previousClusterState, newClusterState, stopWatch);
+                applyChanges(task, previousClusterState, newClusterState, stopWatch); // 很重要，比如创建索引等（）
                 TimeValue executionTime = TimeValue.timeValueMillis(Math.max(0, currentTimeInMillis() - startTimeMS));
                 logger.debug("processing [{}]: took [{}] done applying updated cluster state (version: {}, uuid: {})", task.source,
                     executionTime, newClusterState.version(),
@@ -482,7 +482,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         }
 
         logger.debug("apply cluster state with version {}", newClusterState.version());
-        callClusterStateAppliers(clusterChangedEvent, stopWatch);
+        callClusterStateAppliers(clusterChangedEvent, stopWatch);   // 会去跑到IndicesClusterStateService.applyClusterState执行
 
         nodeConnectionsService.disconnectFromNodesExcept(newClusterState.nodes());
 
@@ -503,7 +503,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         final CountDownLatch countDownLatch = new CountDownLatch(1);
         nodeConnectionsService.connectToNodes(newClusterState.nodes(), countDownLatch::countDown);
         try {
-            countDownLatch.await();
+            countDownLatch.await(); // 竟然没有超时设置
         } catch (InterruptedException e) {
             logger.debug("interrupted while connecting to nodes, continuing", e);
             Thread.currentThread().interrupt();

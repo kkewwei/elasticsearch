@@ -138,7 +138,7 @@ public class Aggregations implements Iterable<Aggregation>, ToXContentFragment {
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.START_OBJECT) {
                 SetOnce<Aggregation> typedAgg = new SetOnce<>();
-                String currentField = parser.currentName();
+                String currentField = parser.currentName(); // 聚合算子名称
                 parseTypedKeysObject(parser, Aggregation.TYPED_KEYS_DELIMITER, Aggregation.class, typedAgg::set);
                 if (typedAgg.get() != null) {
                     aggregations.add(typedAgg.get());

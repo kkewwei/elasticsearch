@@ -63,7 +63,7 @@ public class RestRequest implements ToXContent.Params {
 
     private final NamedXContentRegistry xContentRegistry;
     private final Map<String, String> params;
-    private final Map<String, List<String>> headers;
+    private final Map<String, List<String>> headers; // Hosts -> 127.0.0.1:9200 Connection:Keep-Alive   Content-Type:application/json    Content-Length:129   User-Agent:Apache-HttpAsynclient(Java/1.8.0_74)
     private final String rawPath;
     private final Set<String> consumedParams = new HashSet<>();
     private final SetOnce<XContentType> xContentType = new SetOnce<>();

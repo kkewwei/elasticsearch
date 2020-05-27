@@ -75,8 +75,8 @@ public class RestController implements HttpServerTransport.Dispatcher {
     private final CircuitBreakerService circuitBreakerService;
 
     /** Rest headers that are copied to internal requests made during a rest request. */
-    private final Set<RestHeaderDefinition> headersToCopy;
-    private final UsageService usageService;
+    private final Set<RestHeaderDefinition> headersToCopy; // es-security-runas-user ; X-Opaque-Id ;  Authorization ;   es-secondary-authorization
+    private final UsageService usageService; // 对当前使用handler个数的统计
 
     public RestController(Set<RestHeaderDefinition> headersToCopy, UnaryOperator<RestHandler> handlerWrapper,
             NodeClient client, CircuitBreakerService circuitBreakerService, UsageService usageService) {
@@ -222,7 +222,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
         }
         RestChannel responseChannel = channel;
         try {
-            if (handler.canTripCircuitBreaker()) {
+            if (handler.canTripCircuitBreaker()) { // SecurityRestFilter，里面的hander是RestSearchAction
                 inFlightRequestsBreaker(circuitBreakerService).addEstimateBytesAndMaybeBreak(contentLength, "<http_request>");
             } else {
                 inFlightRequestsBreaker(circuitBreakerService).addWithoutBreaking(contentLength);
@@ -233,7 +233,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
             if (handler.allowsUnsafeBuffers() == false) {
                 request.ensureSafeBuffers();
             }
-            handler.handleRequest(request, responseChannel, client);
+            handler.handleRequest(request, responseChannel, client); // SecurityRestFilter
         } catch (Exception e) {
             responseChannel.sendResponse(new BytesRestResponse(responseChannel, e));
         }
@@ -271,9 +271,9 @@ public class RestController implements HttpServerTransport.Dispatcher {
     }
 
     private void tryAllHandlers(final RestRequest request, final RestChannel channel, final ThreadContext threadContext) throws Exception {
-        for (final RestHeaderDefinition restHeader : headersToCopy) {
+        for (final RestHeaderDefinition restHeader : headersToCopy) { // 遍历系统保留Header,看是否有值传递过来
             final String name = restHeader.getName();
-            final List<String> headerValues = request.getAllHeaderValues(name);
+            final List<String> headerValues = request.getAllHeaderValues(name); // 从传递过来的header中取值
             if (headerValues != null && headerValues.isEmpty() == false) {
                 final List<String> distinctHeaderValues = headerValues.stream().distinct().collect(Collectors.toList());
                 if (restHeader.isMultiValueAllowed() == false && distinctHeaderValues.size() > 1) {
@@ -299,7 +299,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
         final RestRequest.Method requestMethod;
         try {
             // Resolves the HTTP method and fails if the method is invalid
-            requestMethod = request.method();
+            requestMethod = request.method(); // 这里会进行转变
             // Loop through all possible handlers, attempting to dispatch the request
             Iterator<MethodHandlers> allHandlers = getAllHandlers(request.params(), rawPath);
             while (allHandlers.hasNext()) {
@@ -504,7 +504,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
             close();
             delegate.sendResponse(response);
         }
-
+        // 熔断器值减小
         private void close() {
             // attempt to close once atomically
             if (closed.compareAndSet(false, true) == false) {

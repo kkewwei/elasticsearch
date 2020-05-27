@@ -64,7 +64,7 @@ import java.util.Objects;
  */
 public abstract class MappedFieldType extends FieldType {
 
-    private String name;
+    private String name; // 字段名称
     private float boost;
     // TODO: remove this docvalues flag and use docValuesType
     private boolean docValues;

@@ -21,10 +21,10 @@ package org.elasticsearch.transport;
 
 public final class TransportStatus {
 
-    private static final byte STATUS_REQRES = 1 << 0;
-    private static final byte STATUS_ERROR = 1 << 1;
-    private static final byte STATUS_COMPRESS = 1 << 2;
-    private static final byte STATUS_HANDSHAKE = 1 << 3;
+    private static final byte STATUS_REQRES = 1 << 0;  // request
+    private static final byte STATUS_ERROR = 1 << 1;  // error
+    private static final byte STATUS_COMPRESS = 1 << 2;  // compress
+    private static final byte STATUS_HANDSHAKE = 1 << 3; // handshake
 
     public static boolean isRequest(byte value) {
         return (value & STATUS_REQRES) == 0;

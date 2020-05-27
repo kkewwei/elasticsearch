@@ -49,7 +49,7 @@ import java.util.Map;
  * Keeps track of state related to shard recovery.
  */
 public class RecoveryState implements ToXContentFragment, Writeable {
-
+    // shard恢复流程,setStage流程即是每个流程，顺序不能改变
     public enum Stage {
         INIT((byte) 0),
 

@@ -27,7 +27,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
  */
 public abstract class NetworkMessage {
 
-    protected final Version version;
+    protected final Version version;// handshake时，version=当前client支持的最小版本（es7是es6.8）
     protected final ThreadContext threadContext;
     protected final ThreadContext.StoredContext storedContext;
     protected final long requestId;
@@ -37,7 +37,7 @@ public abstract class NetworkMessage {
         this.threadContext = threadContext;
         storedContext = threadContext.stashContext();
         storedContext.restore();
-        this.version = version;
+        this.version = version;// handshake时，version=当前client支持的最小版本（es7是es6.8）
         this.requestId = requestId;
         this.status = status;
     }

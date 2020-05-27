@@ -61,7 +61,7 @@ import java.util.stream.Stream;
  * engine.
  *
  * @see #ReadOnlyEngine(EngineConfig, SeqNoStats, TranslogStats, boolean, Function)
- */
+ */  // 索引关闭的时候会跑到这里
 public class ReadOnlyEngine extends Engine {
 
     /**

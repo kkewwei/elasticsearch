@@ -78,7 +78,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * an external event.
  */
 // For reference why we use RefCounted here see #20095
-public abstract class SearchContext extends AbstractRefCounted implements Releasable {
+public abstract class SearchContext extends AbstractRefCounted implements Releasable {  // 也是个引用个数型
 
     public static final int DEFAULT_TERMINATE_AFTER = 0;
     public static final int TRACK_TOTAL_HITS_ACCURATE = Integer.MAX_VALUE;
@@ -248,7 +248,7 @@ public abstract class SearchContext extends AbstractRefCounted implements Releas
     /**
      * Indicates the total number of hits to count accurately.
      * Defaults to {@link #DEFAULT_TRACK_TOTAL_HITS_UP_TO}.
-     */
+     */ // 默认在本类DEFAULT_TRACK_TOTAL_HITS_UP_TO中实现的
     public abstract int trackTotalHitsUpTo();
 
     public abstract SearchContext searchAfter(FieldDoc searchAfter);

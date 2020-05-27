@@ -44,7 +44,7 @@ abstract class QueryCollectorContext {
     private String profilerName;
 
     QueryCollectorContext(String profilerName) {
-        this.profilerName = profilerName;
+        this.profilerName = profilerName; // search_cancelled，search_top_hits
     }
 
     /**

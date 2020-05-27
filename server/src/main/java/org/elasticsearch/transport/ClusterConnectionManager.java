@@ -71,7 +71,7 @@ public class ClusterConnectionManager implements ConnectionManager {
     private final DelegatingNodeConnectionListener connectionListener = new DelegatingNodeConnectionListener();
 
     public ClusterConnectionManager(Settings settings, Transport transport) {
-        this(ConnectionProfile.buildDefaultConnectionProfile(settings), transport);
+        this(ConnectionProfile.buildDefaultConnectionProfile(settings), transport); //设置channal连接前后文
     }
 
     public ClusterConnectionManager(ConnectionProfile connectionProfile, Transport transport) {

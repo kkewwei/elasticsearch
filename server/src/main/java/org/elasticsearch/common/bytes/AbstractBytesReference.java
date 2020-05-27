@@ -59,7 +59,7 @@ public abstract class AbstractBytesReference implements BytesReference {
         final BytesRefIterator iterator = iterator();
         BytesRef ref;
         while ((ref = iterator.next()) != null) {
-            os.write(ref.bytes, ref.offset, ref.length);
+            os.write(ref.bytes, ref.offset, ref.length); // translog写入内存中，仅仅写入缓存中，out=BufferedOutputStream。就算translog直接写完文件，也有可能写入了系统cache中
         }
     }
 

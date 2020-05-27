@@ -81,7 +81,7 @@ public abstract class ConcurrentCollections {
     }
 
     public static <T> BlockingQueue<T> newBlockingQueue() {
-        return new LinkedTransferQueue<>();
+        return new LinkedTransferQueue<>();  // 无边界阻塞队列
     }
 
     private ConcurrentCollections() {

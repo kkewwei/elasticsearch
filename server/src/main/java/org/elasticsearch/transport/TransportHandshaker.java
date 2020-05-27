@@ -46,14 +46,14 @@ final class TransportHandshaker {
     private final ConcurrentMap<Long, HandshakeResponseHandler> pendingHandshakes = new ConcurrentHashMap<>();
     private final CounterMetric numHandshakes = new CounterMetric();
 
-    private final Version version;
+    private final Version version;// 从Netty4Plugin.getTransports中获取的当前client版本号
     private final ThreadPool threadPool;
     private final HandshakeRequestSender handshakeRequestSender;
     private final HandshakeResponseSender handshakeResponseSender;
 
     TransportHandshaker(Version version, ThreadPool threadPool, HandshakeRequestSender handshakeRequestSender,
                         HandshakeResponseSender handshakeResponseSender) {
-        this.version = version;
+        this.version = version;// 从Netty4Plugin.getTransports中获取的当前client版本号
         this.threadPool = threadPool;
         this.handshakeRequestSender = handshakeRequestSender;
         this.handshakeResponseSender = handshakeResponseSender;
@@ -61,7 +61,7 @@ final class TransportHandshaker {
 
     void sendHandshake(long requestId, DiscoveryNode node, TcpChannel channel, TimeValue timeout, ActionListener<Version> listener) {
         numHandshakes.inc();
-        final HandshakeResponseHandler handler = new HandshakeResponseHandler(requestId, version, listener);
+        final HandshakeResponseHandler handler = new HandshakeResponseHandler(requestId, version, listener); // 这里是handshake响应时的接口
         pendingHandshakes.put(requestId, handler);
         channel.addCloseListener(ActionListener.wrap(
             () -> handler.handleLocalException(new TransportException("handshake failed because connection reset"))));
@@ -70,9 +70,9 @@ final class TransportHandshaker {
             // for the request we use the minCompatVersion since we don't know what's the version of the node we talk to
             // we also have no payload on the request but the response will contain the actual version of the node we talk
             // to as the payload.
-            final Version minCompatVersion = version.minimumCompatibilityVersion();
-            handshakeRequestSender.sendRequest(node, channel, requestId, minCompatVersion);
-
+            final Version minCompatVersion = version.minimumCompatibilityVersion(); // es7 你能支持的最下分支是es6.8
+            handshakeRequestSender.sendRequest(node, channel, requestId, minCompatVersion);// 响应是通过pendingHandshakes来实现的
+            // 握手超时，就直接抛这个异常。
             threadPool.schedule(
                 () -> handler.handleLocalException(new ConnectTransportException(node, "handshake_timeout[" + timeout + "]")),
                 timeout,
@@ -132,9 +132,9 @@ final class TransportHandshaker {
 
         @Override
         public void handleResponse(HandshakeResponse response) {
-            if (isDone.compareAndSet(false, true)) {
+            if (isDone.compareAndSet(false, true)) { // 首先标记这个hander完成了
                 Version version = response.responseVersion;
-                if (currentVersion.isCompatible(version) == false) {
+                if (currentVersion.isCompatible(version) == false) { // 比较版本兼容性问题
                     listener.onFailure(new IllegalStateException("Received message from unsupported version: [" + version
                         + "] minimal compatible version is: [" + currentVersion.minimumCompatibilityVersion() + "]"));
                 } else {
@@ -192,7 +192,7 @@ final class TransportHandshaker {
             super.writeTo(streamOutput);
             assert version != null;
             try (BytesStreamOutput messageStreamOutput = new BytesStreamOutput(4)) {
-                Version.writeVersion(version, messageStreamOutput);
+                Version.writeVersion(version, messageStreamOutput); // 当前版本
                 BytesReference reference = messageStreamOutput.bytes();
                 streamOutput.writeBytesReference(reference);
             }

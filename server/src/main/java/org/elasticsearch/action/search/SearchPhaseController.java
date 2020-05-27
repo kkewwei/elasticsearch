@@ -175,7 +175,7 @@ public final class SearchPhaseController {
                 }
             }
         }
-        final boolean hasHits = (reducedCompletionSuggestions.isEmpty() && topDocs.isEmpty()) == false;
+        final boolean hasHits = (reducedCompletionSuggestions.isEmpty() && topDocs.isEmpty()) == false; // 有满足的结果
         if (hasHits) {
             final TopDocs mergedTopDocs = mergeTopDocs(topDocs, size, ignoreFrom ? 0 : from);
             final ScoreDoc[] mergedScoreDocs = mergedTopDocs == null ? EMPTY_DOCS : mergedTopDocs.scoreDocs;
@@ -217,7 +217,7 @@ public final class SearchPhaseController {
             return SortedTopDocs.EMPTY;
         }
     }
-
+    // 排序集合
     static TopDocs mergeTopDocs(Collection<TopDocs> results, int topN, int from) {
         if (results.isEmpty()) {
             return null;
@@ -297,7 +297,7 @@ public final class SearchPhaseController {
             return InternalSearchResponse.empty();
         }
         ScoreDoc[] sortedDocs = reducedQueryPhase.sortedTopDocs.scoreDocs;
-        SearchHits hits = getHits(reducedQueryPhase, ignoreFrom, fetchResults, resultsLookup);
+        SearchHits hits = getHits(reducedQueryPhase, ignoreFrom, fetchResults, resultsLookup); // 进来
         if (reducedQueryPhase.suggest != null) {
             if (!fetchResults.isEmpty()) {
                 int currentOffset = hits.getHits().length;
@@ -336,7 +336,7 @@ public final class SearchPhaseController {
                                Collection<? extends SearchPhaseResult> fetchResults, IntFunction<SearchPhaseResult> resultsLookup) {
         SortedTopDocs sortedTopDocs = reducedQueryPhase.sortedTopDocs;
         int sortScoreIndex = -1;
-        if (sortedTopDocs.isSortedByField) {
+        if (sortedTopDocs.isSortedByField) {  // 是否根据某个字段排序
             SortField[] sortFields = sortedTopDocs.sortFields;
             for (int i = 0; i < sortFields.length; i++) {
                 if (sortFields[i].getType() == SortField.Type.SCORE) {
@@ -615,7 +615,7 @@ public final class SearchPhaseController {
      * that incrementally reduces aggregation results as shard results are consumed.
      * This implementation can be configured to batch up a certain amount of results and only reduce them
      * iff the buffer is exhausted.
-     */
+     */  // 当需要查询的分片个数大于最大设置分片的时候，需要使用
     static final class QueryPhaseResultConsumer extends ArraySearchPhaseResults<SearchPhaseResult> {
         private final SearchShardTarget[] processedShards;
         private final Supplier<InternalAggregations>[] aggsBuffer;
@@ -759,15 +759,15 @@ public final class SearchPhaseController {
         SearchSourceBuilder source = request.source();
         boolean isScrollRequest = request.scroll() != null;
         final boolean hasAggs = source != null && source.aggregations() != null;
-        final boolean hasTopDocs = source == null || source.size() != 0;
-        final int trackTotalHitsUpTo = request.resolveTrackTotalHitsUpTo();
+        final boolean hasTopDocs = source == null || source.size() != 0;// true, source为空，或者
+        final int trackTotalHitsUpTo = request.resolveTrackTotalHitsUpTo();// 默认值 10000
         InternalAggregation.ReduceContextBuilder aggReduceContextBuilder = requestToAggReduceContextBuilder.apply(request);
-        if (isScrollRequest == false && (hasAggs || hasTopDocs)) {
+        if (isScrollRequest == false && (hasAggs || hasTopDocs)) {// 如果有聚合操作，或者文档数要求的，就得设置
             // no incremental reduce if scroll is used - we only hit a single shard or sometimes more...
-            if (request.getBatchedReduceSize() < numShards) {
+            if (request.getBatchedReduceSize() < numShards) {// 当当前聚合的分片大于限定分片
                 int topNSize = getTopDocsSize(request);
                 // only use this if there are aggs and if there are more shards than we should reduce at once
-                return new QueryPhaseResultConsumer(listener, this, numShards, request.getBatchedReduceSize(), hasTopDocs, hasAggs,
+                return new QueryPhaseResultConsumer(listener, this, numShards, request.getBatchedReduceSize(), hasTopDocs, hasAggs,// 比较重要，会根据docId获取具体文档内容
                     trackTotalHitsUpTo, topNSize, aggReduceContextBuilder, request.isFinalReduce());
             }
         }
@@ -779,7 +779,7 @@ public final class SearchPhaseController {
             }
 
             @Override
-            ReducedQueryPhase reduce() {
+            ReducedQueryPhase reduce() { // 将所有查询结果进行最终的聚合操作
                 List<SearchPhaseResult> resultList = results.asList();
                 final ReducedQueryPhase reducePhase =
                     reducedQueryPhase(resultList, isScrollRequest, trackTotalHitsUpTo, aggReduceContextBuilder, request.isFinalReduce());

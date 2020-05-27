@@ -139,10 +139,10 @@ public class InternalEngine extends Engine {
     private final Translog translog;
     private final ElasticsearchConcurrentMergeScheduler mergeScheduler;
 
-    private final IndexWriter indexWriter;
+    private final IndexWriter indexWriter; // 写的Writer
 
     private final ExternalReaderManager externalReaderManager;
-    private final ElasticsearchReaderManager internalReaderManager;
+    private final ElasticsearchReaderManager internalReaderManager; // 两类
 
     private final Lock flushLock = new ReentrantLock();
     private final ReentrantLock optimizeLock = new ReentrantLock();
@@ -153,7 +153,7 @@ public class InternalEngine extends Engine {
 
     private volatile SegmentInfos lastCommittedSegmentInfos;
 
-    private final IndexThrottle throttle;
+    private final IndexThrottle throttle; // 写入限速
 
     private final LocalCheckpointTracker localCheckpointTracker;
 
@@ -161,7 +161,7 @@ public class InternalEngine extends Engine {
 
     // How many callers are currently requesting index throttling.  Currently there are only two situations where we do this: when merges
     // are falling behind and when writing indexing buffer to disk is too slow.  When this is 0, there is no throttling, else we throttling
-    // incoming indexing ops to a single thread:
+    // incoming indexing ops to a single thread: 有不止一方在调用限流请求，比如段合并过多+写入磁盘过慢，这里统计几方申请调用限速
     private final AtomicInteger throttleRequestCount = new AtomicInteger();
     private final AtomicBoolean pendingTranslogRecovery = new AtomicBoolean(false);
     private final AtomicLong maxUnsafeAutoIdTimestamp = new AtomicLong(-1);
@@ -199,7 +199,7 @@ public class InternalEngine extends Engine {
     public InternalEngine(EngineConfig engineConfig) {
         this(engineConfig, LocalCheckpointTracker::new);
     }
-
+    // 这里每个shard恢复时产生的
     InternalEngine(
             final EngineConfig engineConfig,
             final BiFunction<Long, Long, LocalCheckpointTracker> localCheckpointTrackerSupplier) {
@@ -351,7 +351,7 @@ public class InternalEngine extends Engine {
                               BiConsumer<ElasticsearchDirectoryReader, ElasticsearchDirectoryReader> refreshListener) throws IOException {
             this.refreshListener = refreshListener;
             this.internalReaderManager = internalReaderManager;
-            this.current = internalReaderManager.acquire(); // steal the reference without warming up
+            this.current = internalReaderManager.acquire(); // steal the reference without warming up。search的时候会用
         }
 
         @Override
@@ -359,7 +359,7 @@ public class InternalEngine extends Engine {
             // we simply run a blocking refresh on the internal reference manager and then steal it's reader
             // it's a save operation since we acquire the reader which incs it's reference but then down the road
             // steal it by calling incRef on the "stolen" reader
-            internalReaderManager.maybeRefreshBlocking();
+            internalReaderManager.maybeRefreshBlocking();// 会触发merge操作，若有业务再refresh，那么就被阻塞
             final ElasticsearchDirectoryReader newReader = internalReaderManager.acquire();
             if (isWarmedUp == false || newReader != referenceToRefresh) {
                 boolean success = false;
@@ -551,7 +551,7 @@ public class InternalEngine extends Engine {
         }
         return synced;
     }
-
+    // 开始将translog在内存&系统cache中的数据，刷新到translog文件中
     @Override
     public void syncTranslog() throws IOException {
         translog.sync();
@@ -641,7 +641,7 @@ public class InternalEngine extends Engine {
         try {
             try {
                 final ElasticsearchDirectoryReader directoryReader =
-                    ElasticsearchDirectoryReader.wrap(DirectoryReader.open(indexWriter), shardId);
+                    ElasticsearchDirectoryReader.wrap(DirectoryReader.open(indexWriter), shardId); // 是从indexWriter中读取Reader
                 internalReaderManager = new ElasticsearchReaderManager(directoryReader,
                        new RamAccountingRefreshListener(engineConfig.getCircuitBreakerService()));
                 lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
@@ -951,9 +951,9 @@ public class InternalEngine extends Engine {
                             plan.versionForIndexing, index.primaryTerm(), index.seqNo(), plan.currentNotFoundOrDeleted);
                     }
                 }
-                if (index.origin().isFromTranslog() == false) {
+                if (index.origin().isFromTranslog() == false) { // 并不是从
                     final Translog.Location location;
-                    if (indexResult.getResultType() == Result.Type.SUCCESS) {
+                    if (indexResult.getResultType() == Result.Type.SUCCESS) { // 开始向translog内存缓存中写入数据
                         location = translog.add(new Translog.Index(index, indexResult));
                     } else if (indexResult.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) {
                         // if we have document failure, record it as a no-op in the translog and Lucene with the generated seq_no
@@ -1266,7 +1266,7 @@ public class InternalEngine extends Engine {
     }
 
     private void updateDocs(final Term uid, final List<ParseContext.Document> docs, final IndexWriter indexWriter) throws IOException {
-        if (softDeleteEnabled) {
+        if (softDeleteEnabled) { // 会跑大这里
             if (docs.size() > 1) {
                 indexWriter.softUpdateDocuments(uid, docs, softDeletesField);
             } else {
@@ -1601,7 +1601,7 @@ public class InternalEngine extends Engine {
 
     @Override
     public boolean maybeRefresh(String source) throws EngineException {
-        return refresh(source, SearcherScope.EXTERNAL, false);
+        return refresh(source, SearcherScope.EXTERNAL, false); // 周期性refresh可能会触发merge操作
     }
 
     final boolean refresh(String source, SearcherScope scope, boolean block) throws EngineException {
@@ -1622,7 +1622,7 @@ public class InternalEngine extends Engine {
                         referenceManager.maybeRefreshBlocking();
                         refreshed = true;
                     } else {
-                        refreshed = referenceManager.maybeRefresh();
+                        refreshed = referenceManager.maybeRefresh();  // 进行refresh，可能会触发merge操作
                     }
                 } finally {
                     store.decRef();
@@ -1724,7 +1724,7 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public boolean shouldPeriodicallyFlush() {
+    public boolean shouldPeriodicallyFlush() { // 每写完一条数据，都会检查：是否需要flush而清空transLog文件
         ensureOpen();
         if (shouldPeriodicallyFlushAfterBigMerge.get()) {
             return true;
@@ -1733,7 +1733,7 @@ public class InternalEngine extends Engine {
             Long.parseLong(lastCommittedSegmentInfos.userData.get(SequenceNumbers.LOCAL_CHECKPOINT_KEY));
         final long translogGenerationOfLastCommit =
             translog.getMinGenerationForSeqNo(localCheckpointOfLastCommit + 1).translogFileGeneration;
-        final long flushThreshold = config().getIndexSettings().getFlushThresholdSize().getBytes();
+        final long flushThreshold = config().getIndexSettings().getFlushThresholdSize().getBytes(); // flush时translog文件大小
         if (translog.sizeInBytesByMinGen(translogGenerationOfLastCommit) < flushThreshold) {
             return false;
         }
@@ -1757,7 +1757,7 @@ public class InternalEngine extends Engine {
         return translogGenerationOfLastCommit < translogGenerationOfNewCommit
             || localCheckpointTracker.getProcessedCheckpoint() == localCheckpointTracker.getMaxSeqNo();
     }
-
+     // 开始真正flush操作，清空translog文件
     @Override
     public CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException {
         ensureOpen();
@@ -1797,7 +1797,7 @@ public class InternalEngine extends Engine {
                     try {
                         translog.rollGeneration();
                         logger.trace("starting commit for flush; commitTranslog=true");
-                        commitIndexWriter(indexWriter, translog, null);
+                        commitIndexWriter(indexWriter, translog, null); // 真正的flush地方，是为了将新产生segment刷盘
                         logger.trace("finished commit for flush");
 
                         // a temporary debugging to investigate test failure - issue#32827. Remove when the issue is resolved
@@ -1813,7 +1813,7 @@ public class InternalEngine extends Engine {
                     } catch (Exception e) {
                         throw new FlushFailedEngineException(shardId, e);
                     }
-                    refreshLastCommittedSegmentInfos();
+                    refreshLastCommittedSegmentInfos(); // 更新最新存储在磁盘segments
 
                 }
                 newCommitId = lastCommittedSegmentInfos.getId();
@@ -1842,7 +1842,7 @@ public class InternalEngine extends Engine {
         store.incRef();
         try {
             // reread the last committed segment infos
-            lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
+            lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo(); // 从segments_1中读取这个所有segments的元数据，然后再去遍历所有的_n.si的内容，获取每个segment的元数据信息
         } catch (Exception e) {
             if (isClosed.get() == false) {
                 try {
@@ -2206,7 +2206,7 @@ public class InternalEngine extends Engine {
             case INTERNAL:
                 return internalReaderManager;
             case EXTERNAL:
-                return externalReaderManager;
+                return externalReaderManager; // refresh时使用的external
             default:
                 throw new IllegalStateException("unknown scope: " + scope);
         }
@@ -2227,28 +2227,28 @@ public class InternalEngine extends Engine {
         if (Assertions.ENABLED) {
             return new AssertingIndexWriter(directory, iwc);
         } else {
-            return new IndexWriter(directory, iwc);
+            return new IndexWriter(directory, iwc); // 会跑到这里
         }
     }
-
+    // 设置了blocktree.terms.fst：OFF_HEAP
     static Map<String, String> getReaderAttributes(Directory directory, IndexSettings indexSettings) {
         Directory unwrap = FilterDirectory.unwrap(directory);
-        boolean defaultOffHeap = FsDirectoryFactory.isHybridFs(unwrap) || unwrap instanceof MMapDirectory;
+        boolean defaultOffHeap = FsDirectoryFactory.isHybridFs(unwrap) || unwrap instanceof MMapDirectory; // 默认为true
         Map<String, String> attributes = new HashMap<>();
         attributes.put(BlockTreeTermsReader.FST_MODE_KEY, defaultOffHeap ? FSTLoadMode.OFF_HEAP.name() : FSTLoadMode.ON_HEAP.name());
-        if (IndexSettings.ON_HEAP_ID_TERMS_INDEX.exists(indexSettings.getSettings())) {
+        if (IndexSettings.ON_HEAP_ID_TERMS_INDEX.exists(indexSettings.getSettings())) { // index.force_memory_id_terms_dictionary一般直接跳过了
             final boolean idOffHeap = IndexSettings.ON_HEAP_ID_TERMS_INDEX.get(indexSettings.getSettings()) == false;
             attributes.put(BlockTreeTermsReader.FST_MODE_KEY + "." + IdFieldMapper.NAME,
                     idOffHeap ? FSTLoadMode.OFF_HEAP.name() : FSTLoadMode.ON_HEAP.name());
         }
         return Collections.unmodifiableMap(attributes);
     }
-
+    // 这里
     private IndexWriterConfig getIndexWriterConfig() {
         final IndexWriterConfig iwc = new IndexWriterConfig(engineConfig.getAnalyzer());
         iwc.setCommitOnClose(false); // we by default don't commit on close
         iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
-        iwc.setReaderAttributes(getReaderAttributes(store.directory(), engineConfig.getIndexSettings()));
+        iwc.setReaderAttributes(getReaderAttributes(store.directory(), engineConfig.getIndexSettings())); // 设置了blocktree.terms.fst：off_heap
         iwc.setIndexDeletionPolicy(combinedDeletionPolicy);
         // with tests.verbose, lucene sets this up: plumb to align with filesystem stream
         boolean verbose = false;
@@ -2268,7 +2268,7 @@ public class InternalEngine extends Engine {
                 new SoftDeletesRetentionMergePolicy(Lucene.SOFT_DELETES_FIELD, softDeletesPolicy::getRetentionQuery,
                     new PrunePostingsMergePolicy(mergePolicy, IdFieldMapper.NAME)));
         }
-        boolean shuffleForcedMerge = Booleans.parseBoolean(System.getProperty("es.shuffle_forced_merge", Boolean.TRUE.toString()));
+        boolean shuffleForcedMerge = Booleans.parseBoolean(System.getProperty("es.shuffle_forced_merge", Boolean.TRUE.toString())); //默认为true
         if (shuffleForcedMerge) {
             // We wrap the merge policy for all indices even though it is mostly useful for time-based indices
             // but there should be no overhead for other type of indices so it's simpler than adding a setting
@@ -2277,7 +2277,7 @@ public class InternalEngine extends Engine {
         }
         iwc.setMergePolicy(new ElasticsearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
-        iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
+        iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac()); // 设置lucene全盘刷新的上线：indices.memory.index_buffer_size，默认10%
         iwc.setCodec(engineConfig.getCodec());
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh
         if (config().getIndexSort() != null) {
@@ -2313,10 +2313,10 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public void activateThrottling() {
+    public void activateThrottling() { //
         int count = throttleRequestCount.incrementAndGet();
         assert count >= 1 : "invalid post-increment throttleRequestCount=" + count;
-        if (count == 1) {
+        if (count == 1) { // 只要有一方申请限速，那么就限速
             throttle.activate();
         }
     }
@@ -2349,7 +2349,7 @@ public class InternalEngine extends Engine {
     }
 
     private final class EngineMergeScheduler extends ElasticsearchConcurrentMergeScheduler {
-        private final AtomicInteger numMergesInFlight = new AtomicInteger(0);
+        private final AtomicInteger numMergesInFlight = new AtomicInteger(0); // 正在处于合并的merge
         private final AtomicBoolean isThrottling = new AtomicBoolean();
 
         EngineMergeScheduler(ShardId shardId, IndexSettings indexSettings) {
@@ -2359,8 +2359,8 @@ public class InternalEngine extends Engine {
         @Override
         public synchronized void beforeMerge(OnGoingMerge merge) {
             int maxNumMerges = mergeScheduler.getMaxMergeCount();
-            if (numMergesInFlight.incrementAndGet() > maxNumMerges) {
-                if (isThrottling.getAndSet(true) == false) {
+            if (numMergesInFlight.incrementAndGet() > maxNumMerges) { // 超过设置的段个数
+                if (isThrottling.getAndSet(true) == false) { // 第一次调用才进来
                     logger.info("now throttling indexing: numMergesInFlight={}, maxNumMerges={}", numMergesInFlight, maxNumMerges);
                     activateThrottling();
                 }

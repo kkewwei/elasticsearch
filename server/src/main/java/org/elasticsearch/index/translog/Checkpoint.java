@@ -196,7 +196,7 @@ final class Checkpoint {
             }
         }
     }
-
+    // 新创建一个checkoutpoint，translog.ckp文件出来，并将该文件强制刷磁盘
     public static void write(ChannelFactory factory, Path checkpointFile, Checkpoint checkpoint, OpenOption... options) throws IOException {
         final ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream(V3_FILE_SIZE) {
             @Override
@@ -223,7 +223,7 @@ final class Checkpoint {
             Channels.writeToChannel(byteOutputStream.toByteArray(), channel);
             // no need to force metadata, file size stays the same and we did the full fsync
             // when we first created the file, so the directory entry doesn't change as well
-            channel.force(false);
+            channel.force(false); // 强制将checkpoint文件：translog.ckp写入磁盘
         }
     }
 

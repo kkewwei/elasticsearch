@@ -28,12 +28,12 @@ import java.io.IOException;
 /**
  * Represents the action of requesting a join vote (see {@link Join}) from a node.
  * The source node represents the node that is asking for join votes.
- */
+ */  //加入集群的
 public class StartJoinRequest extends TransportRequest {
 
-    private final DiscoveryNode sourceNode;
+    private final DiscoveryNode sourceNode; // 谁在要选票
 
-    private final long term;
+    private final long term; // 候选人的term
 
     public StartJoinRequest(DiscoveryNode sourceNode, long term) {
         this.sourceNode = sourceNode;

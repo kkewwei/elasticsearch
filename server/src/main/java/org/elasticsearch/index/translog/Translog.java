@@ -78,7 +78,7 @@ import java.util.stream.Stream;
  * association between the lucene index an the transaction log file. This UUID is used to prevent accidental recovery from a transaction
  * log that belongs to a
  * different engine.
- * <p>
+ * <p> // CheckoutPoint文件在每次异步操作时记录，记录了操作的operation数，当前
  * Each Translog has only one translog file open for writes at any time referenced by a translog generation ID. This ID is written to a
  * {@code translog.ckp} file that is designed to fit in a single disk block such that a write of the file is atomic. The checkpoint file
  * is written on each fsync operation of the translog and records the number of operations written, the current translog's file generation,
@@ -106,8 +106,8 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
      */
     public static final String TRANSLOG_UUID_KEY = "translog_uuid";
     public static final String TRANSLOG_FILE_PREFIX = "translog-";
-    public static final String TRANSLOG_FILE_SUFFIX = ".tlog";
-    public static final String CHECKPOINT_SUFFIX = ".ckp";
+    public static final String TRANSLOG_FILE_SUFFIX = ".tlog";  // Translog
+    public static final String CHECKPOINT_SUFFIX = ".ckp"; // CheckPoint
     public static final String CHECKPOINT_FILE_NAME = "translog" + CHECKPOINT_SUFFIX;
 
     static final Pattern PARSE_STRICT_ID_PATTERN = Pattern.compile("^" + TRANSLOG_FILE_PREFIX + "(\\d+)(\\.tlog)$");
@@ -119,7 +119,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     protected final ReleasableLock readLock;
     protected final ReleasableLock writeLock;
     private final Path location;
-    private TranslogWriter current;
+    private TranslogWriter current; // translog-dd.tlog文件
 
     protected final TragicExceptionHolder tragedy = new TragicExceptionHolder();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -518,18 +518,18 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
      * @return the location of the operation in the translog
      * @throws IOException if adding the operation to the translog resulted in an I/O exception
      */
-    public Location add(final Operation operation) throws IOException {
+    public Location add(final Operation operation) throws IOException { // 向translog内存缓存中写入数据
         final ReleasableBytesStreamOutput out = new ReleasableBytesStreamOutput(bigArrays);
         try {
             final long start = out.position();
-            out.skip(Integer.BYTES);
+            out.skip(Integer.BYTES); // 写入操作数大小
             writeOperationNoSize(new BufferedChecksumStreamOutput(out), operation);
             final long end = out.position();
             final int operationSize = (int) (end - Integer.BYTES - start);
             out.seek(start);
-            out.writeInt(operationSize);
+            out.writeInt(operationSize); // 写入operation的大小
             out.seek(end);
-            final ReleasableBytesReference bytes = out.bytes();
+            final ReleasableBytesReference bytes = out.bytes(); // 获取的是整个message原始数据
             try (ReleasableLock ignored = readLock.acquire()) {
                 ensureOpen();
                 if (operation.primaryTerm() > current.getPrimaryTerm()) {
@@ -539,7 +539,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
                     throw new IllegalArgumentException("Operation term is newer than the current term; "
                         + "current term[" + current.getPrimaryTerm() + "], operation term[" + operation + "]");
                 }
-                return current.add(bytes, operation.seqNo());
+                return current.add(bytes, operation.seqNo()); //真正写入系统
             }
         } catch (final AlreadyClosedException | IOException ex) {
             closeOnTragicEvent(ex);
@@ -1054,12 +1054,12 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
          * Writes the type and translog operation to the given stream
          */
         static void writeOperation(final StreamOutput output, final Operation operation) throws IOException {
-            output.writeByte(operation.opType().id());
+            output.writeByte(operation.opType().id()); // type类型
             switch(operation.opType()) {
                 case CREATE:
                     // the serialization logic in Index was identical to that of Create when create was deprecated
                 case INDEX:
-                    ((Index) operation).write(output);
+                    ((Index) operation).write(output); // 整条数据的明细
                     break;
                 case DELETE:
                     ((Delete) operation).write(output);
@@ -1150,7 +1150,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
 
         @Override
         public Type opType() {
-            return Type.INDEX;
+            return Type.INDEX; // Translog$Index
         }
 
         @Override
@@ -1192,7 +1192,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         public Source getSource() {
             return new Source(source, routing);
         }
-
+        // 记录的是整条数据的明细
         private void write(final StreamOutput out) throws IOException {
             final int format = out.getVersion().onOrAfter(Version.V_7_0_0) ? SERIALIZATION_FORMAT : FORMAT_6_0;
             out.writeVInt(format);

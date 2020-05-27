@@ -119,11 +119,11 @@ public class BalancedShardsAllocator implements ShardsAllocator {
         if (allocation.routingNodes().size() == 0) {
             failAllocationOfNewPrimaries(allocation);
             return;
-        }
+        } // 从加权方面考虑是否需要分配或者平衡
         final Balancer balancer = new Balancer(logger, allocation, weightFunction, threshold);
-        balancer.allocateUnassigned();
-        balancer.moveShards();
-        balancer.balance();
+        balancer.allocateUnassigned(); // 怎么在加权下选择合适的节点
+        balancer.moveShards();  // move是从自身分片是否合适remain在当前节点上的判断
+        balancer.balance();  // 考虑分片是否是否需要平衡
     }
 
     @Override
@@ -206,12 +206,12 @@ public class BalancedShardsAllocator implements ShardsAllocator {
      * </ul>
      * <code>weight(node, index) = weight<sub>index</sub>(node, index) + weight<sub>node</sub>(node, index)</code>
      */
-    private static class WeightFunction {
+    private static class WeightFunction {// 分值越大，越不平衡
 
         private final float indexBalance;
         private final float shardBalance;
-        private final float theta0;
-        private final float theta1;
+        private final float theta0;  // 分片的的加权值0.45   cluster.routing.allocation.balance.shard
+        private final float theta1;   // 索引的：0.55， cluster.routing.allocation.balance.index
 
         WeightFunction(float indexBalance, float shardBalance) {
             float sum = indexBalance + shardBalance;
@@ -225,9 +225,9 @@ public class BalancedShardsAllocator implements ShardsAllocator {
         }
 
         float weight(Balancer balancer, ModelNode node, String index) {
-            final float weightShard = node.numShards() - balancer.avgShardsPerNode();
-            final float weightIndex = node.numShards(index) - balancer.avgShardsPerNode(index);
-            return theta0 * weightShard + theta1 * weightIndex;
+            final float weightShard = node.numShards() - balancer.avgShardsPerNode();// 这个节点上的分片在整个集群是否均衡
+            final float weightIndex = node.numShards(index) - balancer.avgShardsPerNode(index);// 这个节点上这个索引的分片和该索引在别的节点上分布是否均匀
+            return theta0 * weightShard + theta1 * weightIndex;// 分值越大，越不平衡
         }
     }
 
@@ -462,16 +462,16 @@ public class BalancedShardsAllocator implements ShardsAllocator {
          * only, or in other words relocations that move the weight delta closer
          * to {@code 0.0}
          */
-        private void balanceByWeights() {
+        private void balanceByWeights() {// 整个平衡就靠它了
             final AllocationDeciders deciders = allocation.deciders();
             final ModelNode[] modelNodes = sorter.modelNodes;
             final float[] weights = sorter.weights;
-            for (String index : buildWeightOrderedIndices()) {
+            for (String index : buildWeightOrderedIndices()) { // 遍历每个索引，得分大的在前面
                 IndexMetaData indexMetaData = metaData.index(index);
 
                 // find nodes that have a shard of this index or where shards of this index are allowed to be allocated to,
                 // move these nodes to the front of modelNodes so that we can only balance based on these nodes
-                int relevantNodes = 0;
+                int relevantNodes = 0; // 候选分片： 当前分片正在上面的+可以分配过去的
                 for (int i = 0; i < modelNodes.length; i++) {
                     ModelNode modelNode = modelNodes[i];
                     if (modelNode.getIndex(index) != null
@@ -487,19 +487,19 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                     continue;
                 }
 
-                sorter.reset(index, 0, relevantNodes);
+                sorter.reset(index, 0, relevantNodes); // 每次分配完后，这个索引在这些分片上再次算下得分
                 int lowIdx = 0;
                 int highIdx = relevantNodes - 1;
-                while (true) {
+                while (true) { // 从这里退出来就，该索引就结束了, 一个循环，高节点向前移动一次
                     final ModelNode minNode = modelNodes[lowIdx];
                     final ModelNode maxNode = modelNodes[highIdx];
                     advance_range:
-                    if (maxNode.numShards(index) > 0) {
+                    if (maxNode.numShards(index) > 0) { // 索引在节点得分大于该节点的，全部不考虑
                         final float delta = absDelta(weights[lowIdx], weights[highIdx]);
-                        if (lessThan(delta, threshold)) {
+                        if (lessThan(delta, threshold)) { // cluster.routing.allocation.balance.threshold
                             if (lowIdx > 0 && highIdx-1 > 0 // is there a chance for a higher delta?
                                 && (absDelta(weights[0], weights[highIdx-1]) > threshold) // check if we need to break at all
-                                ) {
+                                ) {  // 不要考虑那么多，既然是反常的，那么就可能是zone决策器导致的
                                 /* This is a special case if allocations from the "heaviest" to the "lighter" nodes is not possible
                                  * due to some allocation decider restrictions like zone awareness. if one zone has for instance
                                  * less nodes than another zone. so one zone is horribly overloaded from a balanced perspective but we
@@ -510,14 +510,14 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                                  * (check shrinking the window from MAX to MIN)
                                  * See #3580
                                  */
-                                break advance_range;
+                                break advance_range; // 跳出所有的advance_range
                             }
                             if (logger.isTraceEnabled()) {
                                 logger.trace("Stop balancing index [{}]  min_node [{}] weight: [{}]" +
                                         "  max_node [{}] weight: [{}]  delta: [{}]",
                                         index, maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], delta);
                             }
-                            break;
+                            break;  // 彻底结束了
                         }
                         if (logger.isTraceEnabled()) {
                             logger.trace("Balancing from node [{}] weight: [{}] to node [{}] weight: [{}]  delta: [{}]",
@@ -562,7 +562,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                         highIdx--;
                     } else {
                         /* we are done here, we either can't relocate anymore or we are balanced */
-                        break;
+                        break; // 彻底结束检查了
                     }
                 }
             }
@@ -581,11 +581,11 @@ public class BalancedShardsAllocator implements ShardsAllocator {
          * average. To re-balance we need to move shards back eventually likely
          * to the nodes we relocated them from.
          */
-        private String[] buildWeightOrderedIndices() {
+        private String[] buildWeightOrderedIndices() { // 最不平衡的在最前面
             final String[] indices = allocation.routingTable().indicesRouting().keys().toArray(String.class);
-            final float[] deltas = new float[indices.length];
+            final float[] deltas = new float[indices.length]; // 每个索引的不平衡数
             for (int i = 0; i < deltas.length; i++) {
-                sorter.reset(indices[i]);
+                sorter.reset(indices[i]);  //置位的时候已经对索引的均衡情况进行了排序
                 deltas[i] = sorter.delta();
             }
             new IntroSorter() {
@@ -601,7 +601,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                     deltas[i] = deltas[j];
                     deltas[j] = tmpDelta;
                 }
-
+                // 数大的在前面
                 @Override
                 protected int compare(int i, int j) {
                     return Float.compare(deltas[j], deltas[i]);
@@ -667,7 +667,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
          *   4. If the method is invoked in explain mode (e.g. from the cluster allocation explain APIs), then
          *      {@link MoveDecision#getNodeDecisions} will have a non-null value.
          */
-        public MoveDecision decideMove(final ShardRouting shardRouting) {
+        public MoveDecision decideMove(final ShardRouting shardRouting) {  // 决定是否需要
             if (shardRouting.started() == false) {
                 // we can only move started shards
                 return MoveDecision.NOT_TAKEN;
@@ -677,11 +677,11 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             final ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());
             assert sourceNode != null && sourceNode.containsShard(shardRouting);
             RoutingNode routingNode = sourceNode.getRoutingNode();
-            Decision canRemain = allocation.deciders().canRemain(shardRouting, routingNode, allocation);
+            Decision canRemain = allocation.deciders().canRemain(shardRouting, routingNode, allocation); // 首先检查是否还合适
             if (canRemain.type() != Decision.Type.NO) {
-                return MoveDecision.stay(canRemain);
+                return MoveDecision.stay(canRemain); // 还合适
             }
-
+            // 这里已经进行了打分, sorter.modelNodes排序后的分片已经是按照最不合理向外排的了
             sorter.reset(shardRouting.getIndexName());
             /*
              * the sorter holds the minimum weight node first for the shards index.
@@ -693,7 +693,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             RoutingNode targetNode = null;
             final List<NodeAllocationResult> nodeExplanationMap = explain ? new ArrayList<>() : null;
             int weightRanking = 0;
-            for (ModelNode currentNode : sorter.modelNodes) {
+            for (ModelNode currentNode : sorter.modelNodes) { // 这里的遍历的顺序已经是打分之后的了，得分最高的
                 if (currentNode != sourceNode) {
                     RoutingNode target = currentNode.getRoutingNode();
                     // don't use canRebalance as we want hard filtering rules to apply. See #17698
@@ -752,7 +752,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
         /**
          * Allocates all given shards on the minimal eligible node for the shards index
          * with respect to the weight function. All given shards must be unassigned.
-         */
+         */ // 不从本地元数据方面考虑分片分配策略， 仅仅从加权方面考虑
         private void allocateUnassigned() {
             RoutingNodes.UnassignedShards unassigned = routingNodes.unassigned();
             assert !nodes.isEmpty();
@@ -770,20 +770,20 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             final AllocationDeciders deciders = allocation.deciders();
             final PriorityComparator secondaryComparator = PriorityComparator.getAllocationComparator(allocation);
             final Comparator<ShardRouting> comparator = (o1, o2) -> {
-                if (o1.primary() ^ o2.primary()) {
-                    return o1.primary() ? -1 : 1;
+                if (o1.primary() ^ o2.primary()) { //亦或运算符， 相同则为0；这里说明两者是异
+                    return o1.primary() ? -1 : 1; //从主分片，则放在后面。若o1为主分片， 则放在前年
                 }
                 final int indexCmp;
-                if ((indexCmp = o1.getIndexName().compareTo(o2.getIndexName())) == 0) {
+                if ((indexCmp = o1.getIndexName().compareTo(o2.getIndexName())) == 0) { // shardId小的，放在前面
                     return o1.getId() - o2.getId();
                 }
                 // this comparator is more expensive than all the others up there
                 // that's why it's added last even though it could be easier to read
                 // if we'd apply it earlier. this comparator will only differentiate across
                 // indices all shards of the same index is treated equally.
-                final int secondary = secondaryComparator.compare(o1, o2);
+                final int secondary = secondaryComparator.compare(o1, o2);  // 排名顺序： 索引创建时间->索引优先级->索引名称
                 return secondary == 0 ? indexCmp : secondary;
-            };
+            };  // 1. 主分片在前 2.晚创建的在前面, 3.索引名称一样的话，shardId小的在前面。
             /*
              * we use 2 arrays and move replicas to the second array once we allocated an identical
              * replica in the current iteration to make sure all indices get allocated in the same manner.
@@ -793,16 +793,16 @@ public class BalancedShardsAllocator implements ShardsAllocator {
              * if we allocate for instance (0, R, IDX1) we move the second replica to the secondary array and proceed with
              * the next replica. If we could not find a node to allocate (0,R,IDX1) we move all it's replicas to ignoreUnassigned.
              */
-            ShardRouting[] primary = unassigned.drain();
+            ShardRouting[] primary = unassigned.drain(); // 获取所有
             ShardRouting[] secondary = new ShardRouting[primary.length];
             int secondaryLength = 0;
             int primaryLength = primary.length;
             ArrayUtil.timSort(primary, comparator);
             final Set<ModelNode> throttledNodes = Collections.newSetFromMap(new IdentityHashMap<>());
-            do {
-                for (int i = 0; i < primaryLength; i++) {
+            do { // 分配顺序： 所有主分片的的主分片->所有分片的第一副分片->所有分片的第二副分片->所有分片的第三副分片
+                for (int i = 0; i < primaryLength; i++) {// 先第一轮排序
                     ShardRouting shard = primary[i];
-                    AllocateUnassignedDecision allocationDecision = decideAllocateUnassigned(shard, throttledNodes);
+                    AllocateUnassignedDecision allocationDecision = decideAllocateUnassigned(shard, throttledNodes);  // 现决定其中一个分配
                     final String assignedNodeId = allocationDecision.getTargetNode() != null ?
                                                       allocationDecision.getTargetNode().getId() : null;
                     final ModelNode minNode = assignedNodeId != null ? nodes.get(assignedNodeId) : null;
@@ -817,7 +817,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                             allocation.clusterInfo(), allocation.metaData(), allocation.routingTable());
                         shard = routingNodes.initializeShard(shard, minNode.getNodeId(), null, shardSize, allocation.changes());
                         minNode.addShard(shard);
-                        if (!shard.primary()) {
+                        if (!shard.primary()) { // 若是多个副本分配，先分配第一个副本，让别的第一个分片的第一个副本先分配，第二轮再分配所有副本的第二个副本
                             // copy over the same replica shards to the secondary array so they will get allocated
                             // in a subsequent iteration, allowing replicas of other shards to be allocated first
                             while(i < primaryLength-1 && comparator.compare(primary[i], primary[i+1]) == 0) {
@@ -884,7 +884,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             }
 
             final boolean explain = allocation.debugDecision();
-            Decision shardLevelDecision = allocation.deciders().canAllocate(shard, allocation);
+            Decision shardLevelDecision = allocation.deciders().canAllocate(shard, allocation); // 说明是可以分配的
             if (shardLevelDecision.type() == Type.NO && explain == false) {
                 // NO decision for allocating the shard, irrespective of any particular node, so exit early
                 return AllocateUnassignedDecision.no(AllocationStatus.DECIDERS_NO, null);
@@ -903,20 +903,20 @@ public class BalancedShardsAllocator implements ShardsAllocator {
              * iteration order is different for each run and makes testing hard */
             Map<String, NodeAllocationResult> nodeExplanationMap = explain ? new HashMap<>() : null;
             List<Tuple<String, Float>> nodeWeights = explain ? new ArrayList<>() : null;
-            for (ModelNode node : nodes.values()) {
+            for (ModelNode node : nodes.values()) { // 针对每个
                 if ((throttledNodes.contains(node) || node.containsShard(shard)) && explain == false) {
                     // decision is NO without needing to check anything further, so short circuit
                     continue;
                 }
 
                 // weight of this index currently on the node
-                float currentWeight = weight.weight(this, node, shard.getIndexName());
+                float currentWeight = weight.weight(this, node, shard.getIndexName());// 若分到该节点后的加权值
                 // moving the shard would not improve the balance, and we are not in explain mode, so short circuit
                 if (currentWeight > minWeight && explain == false) {
                     continue;
                 }
 
-                Decision currentDecision = allocation.deciders().canAllocate(shard, node.getRoutingNode(), allocation);
+                Decision currentDecision = allocation.deciders().canAllocate(shard, node.getRoutingNode(), allocation); //再决定是否当前节点是否可以分配到该节点上
                 if (explain) {
                     nodeExplanationMap.put(node.getNodeId(),
                         new NodeAllocationResult(node.getRoutingNode().node(), currentDecision, 0));
@@ -924,8 +924,8 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                 }
                 if (currentDecision.type() == Type.YES || currentDecision.type() == Type.THROTTLE) {
                     final boolean updateMinNode;
-                    if (currentWeight == minWeight) {
-                        /*  we have an equal weight tie breaking:
+                    if (currentWeight == minWeight) { // 和最小的那个加权一样
+                        /*  we have an equal weight tie breaking: 打破平衡
                          *  1. if one decision is YES prefer it
                          *  2. prefer the node that holds the primary for this index with the next id in the ring ie.
                          *  for the 3 shards 2 replica case we try to build up:
@@ -936,16 +936,16 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                          *  than the id of the shard we need to assign. This works find when new indices are created since
                          *  primaries are added first and we only add one shard set a time in this algorithm.
                          */
-                        if (currentDecision.type() == decision.type()) {
+                        if (currentDecision.type() == decision.type()) { // decision也一样的话，
                             final int repId = shard.id();
-                            final int nodeHigh = node.highestPrimary(shard.index().getName());
-                            final int minNodeHigh = minNode.highestPrimary(shard.getIndexName());
-                            updateMinNode = ((((nodeHigh > repId && minNodeHigh > repId)
+                            final int nodeHigh = node.highestPrimary(shard.index().getName()); // 获取该node上， 该索引最大的那个shardId
+                            final int minNodeHigh = minNode.highestPrimary(shard.getIndexName()); //得分最低的那个节点上的最大ShardId
+                            updateMinNode = ((((nodeHigh > repId && minNodeHigh > repId)   //((a || b) & c) || d
                                                    || (nodeHigh < repId && minNodeHigh < repId))
-                                                  && (nodeHigh < minNodeHigh))
-                                                 || (nodeHigh > repId && minNodeHigh < repId));
+                                                  && (nodeHigh < minNodeHigh))  // 要么都比当前大，或者都比当前小，那么优先选择小的那个
+                                                 || (nodeHigh > repId && minNodeHigh < repId)); //  当nodeHigh既有大的，minNodeHigh有小的时候，优先选择大的那个
                         } else {
-                            updateMinNode = currentDecision.type() == Type.YES;
+                            updateMinNode = currentDecision.type() == Type.YES; // 谁yes，选择谁
                         }
                     } else {
                         updateMinNode = true;
@@ -972,7 +972,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                     nodeDecisions.add(new NodeAllocationResult(current.getNode(), current.getCanAllocateDecision(), ++weightRanking));
                 }
             }
-            return AllocateUnassignedDecision.fromDecision(
+            return AllocateUnassignedDecision.fromDecision( // 选择了一个
                 decision,
                 minNode != null ? minNode.routingNode.node() : null,
                 nodeDecisions
@@ -988,7 +988,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
          */
         private boolean tryRelocateShard(ModelNode minNode, ModelNode maxNode, String idx) {
             final ModelIndex index = maxNode.getIndex(idx);
-            if (index != null) {
+            if (index != null) {// 最大节点上一定有索引
                 logger.trace("Try relocating shard of [{}] from [{}] to [{}]", idx, maxNode.getNodeId(), minNode.getNodeId());
                 final Iterable<ShardRouting> shardRoutings = StreamSupport.stream(index.spliterator(), false)
                     .filter(ShardRouting::started) // cannot rebalance unassigned, initializing or relocating shards anyway
@@ -997,7 +997,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                     ::iterator;
 
                 final AllocationDeciders deciders = allocation.deciders();
-                for (ShardRouting shard : shardRoutings) {
+                for (ShardRouting shard : shardRoutings) { // 对于每个分片来说
                     final Decision rebalanceDecision = deciders.canRebalance(shard, allocation);
                     if (rebalanceDecision.type() == Type.NO) {
                         continue;
@@ -1016,7 +1016,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
                         /* only allocate on the cluster if we are not throttled */
                         logger.debug("Relocate [{}] from [{}] to [{}]", shard, maxNode.getNodeId(), minNode.getNodeId());
                         minNode.addShard(routingNodes.relocateShard(shard, minNode.getNodeId(), shardSize, allocation.changes()).v1());
-                        return true;
+                        return true; // 找到了，并且修改
                     } else {
                         /* allocate on the model even if throttled */
                         logger.debug("Simulate relocation of [{}] from [{}] to [{}]", shard, maxNode.getNodeId(), minNode.getNodeId());
@@ -1166,9 +1166,9 @@ public class BalancedShardsAllocator implements ShardsAllocator {
 
         final ModelNode[] modelNodes;
         /* the nodes weights with respect to the current weight function / index */
-        final float[] weights;
+        final float[] weights; // 在每个分片上面的的得分值
         private final WeightFunction function;
-        private String index;
+        private String index; // 当前索引
         private final Balancer balancer;
         private float pivotWeight;
 
@@ -1182,7 +1182,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
         /**
          * Resets the sorter, recalculates the weights per node and sorts the
          * nodes by weight, with minimal weight first.
-         */
+         */  // 得分小的在前面
         public void reset(String index, int from, int to) {
             this.index = index;
             for (int i = from; i < to; i++) {
@@ -1209,9 +1209,9 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             weights[j] = tmpWeight;
         }
 
-        @Override
+        @Override  //
         protected int compare(int i, int j) {
-            return Float.compare(weights[i], weights[j]);
+            return Float.compare(weights[i], weights[j]); // 若返回负数，则不交换位置
         }
 
         @Override

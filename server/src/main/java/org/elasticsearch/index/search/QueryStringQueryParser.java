@@ -137,7 +137,7 @@ public class QueryStringQueryParser extends XQueryParser {
      * @param lenient If set to `true` will cause format based failures (like providing text to a numeric field) to be ignored.
      */
     public QueryStringQueryParser(QueryShardContext context, boolean lenient) {
-        this(context, "*",
+        this(context, "*",// 这里会找出所有的字段，所有的字段都会拼接成a:1 b:2,
             resolveMappingField(context, "*", 1.0f, false, false),
             lenient, context.getMapperService().searchAnalyzer());
     }

@@ -370,7 +370,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * is in most of the cases the smallest major version release unless the current version
      * is a beta or RC release then the version itself is returned.
      */
-    public Version minimumCompatibilityVersion() {
+    public Version minimumCompatibilityVersion() { // 当前es版本能支持的最小分支
         if (major == 6) {
             // force the minimum compatibility for version 6 to 5.6 since we don't reference version 5 anymore
             return Version.fromId(5060099);

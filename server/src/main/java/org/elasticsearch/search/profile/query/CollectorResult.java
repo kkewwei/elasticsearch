@@ -41,7 +41,7 @@ import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpect
  * Collectors used in the search.  Children CollectorResult's may be
  * embedded inside of a parent CollectorResult
  */
-public class CollectorResult implements ToXContentObject, Writeable {
+public class CollectorResult implements ToXContentObject, Writeable {  //
 
     public static final String REASON_SEARCH_COUNT = "search_count";
     public static final String REASON_SEARCH_TOP_HITS = "search_top_hits";

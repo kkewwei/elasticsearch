@@ -45,15 +45,15 @@ import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.new
 public class PreVoteCollector {
 
     private static final Logger logger = LogManager.getLogger(PreVoteCollector.class);
-
-    public static final String REQUEST_PRE_VOTE_ACTION_NAME = "internal:cluster/request_pre_vote";
+    // 请求发起leader选举前是否同意投票的命令
+    public static final String REQUEST_PRE_VOTE_ACTION_NAME = "internal:cluster/request_pre_vote";  // coordinator节点想选masterl, 进行第一次请求
 
     private final TransportService transportService;
-    private final Runnable startElection;
-    private final LongConsumer updateMaxTermSeen;
+    private final Runnable startElection; // 是Coordinator.startElection()函数
+    private final LongConsumer updateMaxTermSeen;  // 是Coordinator.updateMaxTermSeen函数
     private final ElectionStrategy electionStrategy;
 
-    // Tuple for simple atomic updates. null until the first call to `update()`.
+    // Tuple for simple atomic updates. null until the first call to `update()`. 当为null时代表没有已知的master
     private volatile Tuple<DiscoveryNode, PreVoteResponse> state; // DiscoveryNode component is null if there is currently no known leader.
 
     PreVoteCollector(final TransportService transportService, final Runnable startElection, final LongConsumer updateMaxTermSeen,
@@ -78,7 +78,7 @@ public class PreVoteCollector {
      */
     public Releasable start(final ClusterState clusterState, final Iterable<DiscoveryNode> broadcastNodes) {
         PreVotingRound preVotingRound = new PreVotingRound(clusterState, state.v2().getCurrentTerm());
-        preVotingRound.start(broadcastNodes);
+        preVotingRound.start(broadcastNodes); // 开始预投票
         return preVotingRound;
     }
 
@@ -92,14 +92,14 @@ public class PreVoteCollector {
     DiscoveryNode getLeader() {
         return state.v1();
     }
-
+   // 全部都是在Coordinator中被调用
     public void update(final PreVoteResponse preVoteResponse, @Nullable final DiscoveryNode leader) {
         logger.trace("updating with preVoteResponse={}, leader={}", preVoteResponse, leader);
-        state = new Tuple<>(leader, preVoteResponse);
+        state = new Tuple<>(leader, preVoteResponse); // 一劳永逸，在进入coordinator时候就会初始化一次，谁要给谁
     }
-
+    //预投票，对方收到准master请求。不管版本，只有连接的通peer都回复可以竞选
     private PreVoteResponse handlePreVoteRequest(final PreVoteRequest request) {
-        updateMaxTermSeen.accept(request.getCurrentTerm());
+        updateMaxTermSeen.accept(request.getCurrentTerm()); // 修改本节点的coordinator.maxTermSeen,
 
         Tuple<DiscoveryNode, PreVoteResponse> state = this.state;
         assert state != null : "received pre-vote request before fully initialised";
@@ -107,11 +107,11 @@ public class PreVoteCollector {
         final DiscoveryNode leader = state.v1();
         final PreVoteResponse response = state.v2();
 
-        if (leader == null) {
+        if (leader == null) {  // 如果还没有选选主，则直接返回， 表示支持选举请求
             return response;
         }
 
-        if (leader.equals(request.getSourceNode())) {
+        if (leader.equals(request.getSourceNode())) { // 若leader就是请求节点，则也表示同意选举。可能leader已经失败了，但是我们还认为leader存活，为了减少波动性。那我们就还继续认为。
             // This is a _rare_ case where our leader has detected a failure and stepped down, but we are still a follower. It's possible
             // that the leader lost its quorum, but while we're still a follower we will not offer joins to any other node so there is no
             // major drawback in offering a join to our old leader. The advantage of this is that it makes it slightly more likely that the
@@ -129,7 +129,7 @@ public class PreVoteCollector {
             "state=" + state +
             '}';
     }
-
+    // 选举master,每循环一次，都会产生一个
     private class PreVotingRound implements Releasable {
         private final Map<DiscoveryNode, PreVoteResponse> preVotesReceived = newConcurrentMap();
         private final AtomicBoolean electionStarted = new AtomicBoolean();
@@ -139,9 +139,9 @@ public class PreVoteCollector {
 
         PreVotingRound(final ClusterState clusterState, final long currentTerm) {
             this.clusterState = clusterState;
-            preVoteRequest = new PreVoteRequest(transportService.getLocalNode(), currentTerm);
+            preVoteRequest = new PreVoteRequest(transportService.getLocalNode(), currentTerm); //可以循环使用
         }
-
+        // 开始预竞选通告的发送
         void start(final Iterable<DiscoveryNode> broadcastNodes) {
             assert StreamSupport.stream(broadcastNodes.spliterator(), false).noneMatch(Coordinator::isZen1Node) : broadcastNodes;
             logger.debug("{} requesting pre-votes from {}", this, broadcastNodes);
@@ -151,7 +151,7 @@ public class PreVoteCollector {
                     public PreVoteResponse read(StreamInput in) throws IOException {
                         return new PreVoteResponse(in);
                     }
-
+                    // 接收到别的请求选举的响应
                     @Override
                     public void handleResponse(PreVoteResponse response) {
                         handlePreVoteResponse(response, n);
@@ -173,7 +173,7 @@ public class PreVoteCollector {
                     }
                 }));
         }
-
+        // coordinator收到了别人回复了可以竞选通告
         private void handlePreVoteResponse(final PreVoteResponse response, final DiscoveryNode sender) {
             if (isClosed.get()) {
                 logger.debug("{} is closed, ignoring {} from {}", this, response, sender);
@@ -190,16 +190,16 @@ public class PreVoteCollector {
             }
 
             preVotesReceived.put(sender, response);
-
+            //每接收到一个预选票，就全新检查执行一次，知道相应的节点达到上次的1/2以上
             // create a fake VoteCollection based on the pre-votes and check if there is an election quorum
-            final VoteCollection voteCollection = new VoteCollection();
+            final VoteCollection voteCollection = new VoteCollection(); // 全新的
             final DiscoveryNode localNode = clusterState.nodes().getLocalNode();
             final PreVoteResponse localPreVoteResponse = getPreVoteResponse();
 
             preVotesReceived.forEach((node, preVoteResponse) -> voteCollection.addJoinVote(
                 new Join(node, localNode, preVoteResponse.getCurrentTerm(),
                 preVoteResponse.getLastAcceptedTerm(), preVoteResponse.getLastAcceptedVersion())));
-
+            // 检查多少节点有选票，选票达到
             if (electionStrategy.isElectionQuorum(clusterState.nodes().getLocalNode(), localPreVoteResponse.getCurrentTerm(),
                 localPreVoteResponse.getLastAcceptedTerm(), localPreVoteResponse.getLastAcceptedVersion(),
                 clusterState.getLastCommittedConfiguration(), clusterState.getLastAcceptedConfiguration(), voteCollection) == false) {
@@ -213,7 +213,7 @@ public class PreVoteCollector {
             }
 
             logger.debug("{} added {} from {}, starting election", this, response, sender);
-            startElection.run();
+            startElection.run(); // coordinator节点需要进过预选投票才能正式发起投票
         }
 
         @Override

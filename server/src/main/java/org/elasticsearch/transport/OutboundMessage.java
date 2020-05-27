@@ -32,25 +32,25 @@ import java.util.Set;
 
 abstract class OutboundMessage extends NetworkMessage {
 
-    private final Writeable message;
+    private final Writeable message; // SearchResponse
 
     OutboundMessage(ThreadContext threadContext, Version version, byte status, long requestId, Writeable message) {
         super(threadContext, version, status, requestId);
         this.message = message;
     }
-
+    //  es + length + request_id + status + version 格式化
     BytesReference serialize(BytesStreamOutput bytesStream) throws IOException {
         storedContext.restore();
         bytesStream.setVersion(version);
-        bytesStream.skip(TcpHeader.headerSize(version));
+        bytesStream.skip(TcpHeader.headerSize(version)); // 跳过头，因为是最低版本是6.8。所以不会添加variable_header_size
 
         // The compressible bytes stream will not close the underlying bytes stream
         BytesReference reference;
         int variableHeaderLength = -1;
         final long preHeaderPosition = bytesStream.position();
 
-        if (version.onOrAfter(TcpHeader.VERSION_WITH_HEADER_SIZE)) {
-            writeVariableHeader(bytesStream);
+        if (version.onOrAfter(TcpHeader.VERSION_WITH_HEADER_SIZE)) { // 若是最低版本是7.6之后才会添加
+            writeVariableHeader(bytesStream); //
             variableHeaderLength = Math.toIntExact(bytesStream.position() - preHeaderPosition);
         }
 
@@ -58,15 +58,15 @@ abstract class OutboundMessage extends NetworkMessage {
             stream.setVersion(version);
             stream.setFeatures(bytesStream.getFeatures());
 
-            if (variableHeaderLength == -1) {
-                writeVariableHeader(stream);
+            if (variableHeaderLength == -1) { // 跑到这里了
+                writeVariableHeader(stream); // 写Headers,feature,action
             }
-            reference = writeMessage(stream);
+            reference = writeMessage(stream); // 写的content部分，包括defaultHeaders、features、action
         }
 
         bytesStream.seek(0);
         final int contentSize = reference.length() - TcpHeader.headerSize(version);
-        TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength);
+        TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength); // variableHeaderLength为-1
         return reference;
     }
 
@@ -83,7 +83,7 @@ abstract class OutboundMessage extends NetworkMessage {
         } else if (message instanceof RemoteTransportException) {
             stream.writeException((RemoteTransportException) message);
             zeroCopyBuffer = BytesArray.EMPTY;
-        } else {
+        } else { // 跑到这里 message=SearchResponse
             message.writeTo(stream);
             zeroCopyBuffer = BytesArray.EMPTY;
         }
@@ -102,9 +102,9 @@ abstract class OutboundMessage extends NetworkMessage {
 
     static class Request extends OutboundMessage {
 
-        private final String[] features;
+        private final String[] features; //默认["transport_cliet"]
         private final String action;
-
+        // message可以是ClusterStatusRequest,   handshake时，version=当前client支持的最小版本（es7是es6.8）
         Request(ThreadContext threadContext, String[] features, Writeable message, Version version, String action, long requestId,
                 boolean isHandshake, boolean compress) {
             super(threadContext, version, setStatus(compress, isHandshake, message), requestId, message);
@@ -114,11 +114,11 @@ abstract class OutboundMessage extends NetworkMessage {
 
         @Override
         protected void writeVariableHeader(StreamOutput stream) throws IOException {
-            super.writeVariableHeader(stream);
+            super.writeVariableHeader(stream);// 写headers部分
             if (version.onOrAfter(Version.V_6_3_0)) {
-                stream.writeStringArray(features);
+                stream.writeStringArray(features);// 写新feature部分
             }
-            stream.writeString(action);
+            stream.writeString(action); // 写入action
         }
 
         private static byte setStatus(boolean compress, boolean isHandshake, Writeable message) {
@@ -137,7 +137,7 @@ abstract class OutboundMessage extends NetworkMessage {
 
     static class Response extends OutboundMessage {
 
-        private final Set<String> features;
+        private final Set<String> features; // 内存是["transport_client"]
 
         Response(ThreadContext threadContext, Set<String> features, Writeable message, Version version, long requestId,
                  boolean isHandshake, boolean compress) {

@@ -58,8 +58,8 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
             TimeValue.timeValueMillis(1000), TimeValue.timeValueMillis(1), Setting.Property.NodeScope);
 
     private final TransportService transportService;
-    private final TimeValue probeConnectTimeout;
-    private final TimeValue probeHandshakeTimeout;
+    private final TimeValue probeConnectTimeout; // 探测超时3s
+    private final TimeValue probeHandshakeTimeout; // handshake超时1s
 
     public HandshakingTransportAddressConnector(Settings settings, TransportService transportService) {
         this.transportService = transportService;
@@ -67,7 +67,7 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
         probeHandshakeTimeout = PROBE_HANDSHAKE_TIMEOUT_SETTING.get(settings);
     }
 
-    @Override
+    @Override    // 实际也也没有突出是master节点
     public void connectToRemoteMasterNode(TransportAddress transportAddress, ActionListener<DiscoveryNode> listener) {
         transportService.getThreadPool().generic().execute(new AbstractRunnable() {
             private final AbstractRunnable thisConnectionAttempt = this;
@@ -84,8 +84,8 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
 
                 logger.trace("[{}] opening probe connection", thisConnectionAttempt);
                 transportService.openConnection(targetNode,
-                    ConnectionProfile.buildSingleChannelProfile(Type.REG, probeConnectTimeout, probeHandshakeTimeout,
-                        TimeValue.MINUS_ONE, null), new ActionListener<Connection>() {
+                    ConnectionProfile.buildSingleChannelProfile(Type.REG, probeConnectTimeout, probeHandshakeTimeout, // 只创建一个管道的profile
+                        TimeValue.MINUS_ONE, null), new ActionListener<Connection>() {// 1个管道建立成功了，那么就可以第二步骤的handshake了
                         @Override
                         public void onResponse(Connection connection) {
                             logger.trace("[{}] opened probe connection", thisConnectionAttempt);
@@ -99,13 +99,13 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                                     try {
                                         // success means (amongst other things) that the cluster names match
                                         logger.trace("[{}] handshake successful: {}", thisConnectionAttempt, remoteNode);
-                                        IOUtils.closeWhileHandlingException(connection);
+                                        IOUtils.closeWhileHandlingException(connection); // 把建立的一个handshake管道给关闭了。handshake只是打招呼
 
                                         if (remoteNode.equals(transportService.getLocalNode())) {
                                             listener.onFailure(new ConnectTransportException(remoteNode, "local node found"));
                                         } else if (remoteNode.isMasterNode() == false) {
                                             listener.onFailure(new ConnectTransportException(remoteNode, "non-master-eligible node found"));
-                                        } else {
+                                        } else {// 握手成功后，会再次执行这个。会去建立真正两个节点之间通信的管道
                                             transportService.connectToNode(remoteNode, new ActionListener<Void>() {
                                                 @Override
                                                 public void onResponse(Void ignored) {

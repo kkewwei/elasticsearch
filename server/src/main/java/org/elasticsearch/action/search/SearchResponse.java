@@ -260,13 +260,13 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
     }
 
     public static SearchResponse fromXContent(XContentParser parser) throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        parser.nextToken();
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation); // 开始检查，期望第一个是START_OBJECT
+        parser.nextToken(); // //进入JSON的“{”
         return innerFromXContent(parser);
     }
-
+    // 每个令牌还有属性， FIELD_NAME指明该token就是段名
     public static SearchResponse innerFromXContent(XContentParser parser) throws IOException {
-        ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation); // 进入{的标志
         String currentFieldName = parser.currentName();
         SearchHits hits = null;
         Aggregations aggs = null;
@@ -282,14 +282,14 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
         String scrollId = null;
         List<ShardSearchFailure> failures = new ArrayList<>();
         Clusters clusters = Clusters.EMPTY;
-        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
-            if (token == Token.FIELD_NAME) {
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {// 遍历每个Token，既可以是key，也可以是value
+            if (token == Token.FIELD_NAME) { // 检查该Token是否是一个key
                 currentFieldName = parser.currentName();
-            } else if (token.isValue()) {
+            } else if (token.isValue()) { // 是值
                 if (SCROLL_ID.match(currentFieldName, parser.getDeprecationHandler())) {
                     scrollId = parser.text();
                 } else if (TOOK.match(currentFieldName, parser.getDeprecationHandler())) {
-                    tookInMillis = parser.longValue();
+                    tookInMillis = parser.longValue(); // 检查这个
                 } else if (TIMED_OUT.match(currentFieldName, parser.getDeprecationHandler())) {
                     timedOut = parser.booleanValue();
                 } else if (TERMINATED_EARLY.match(currentFieldName, parser.getDeprecationHandler())) {
@@ -299,16 +299,16 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
                 } else {
                     parser.skipChildren();
                 }
-            } else if (token == Token.START_OBJECT) {
-                if (SearchHits.Fields.HITS.equals(currentFieldName)) {
+            } else if (token == Token.START_OBJECT) { // 是下个token
+                if (SearchHits.Fields.HITS.equals(currentFieldName)) { // hits部分解析
                     hits = SearchHits.fromXContent(parser);
-                } else if (Aggregations.AGGREGATIONS_FIELD.equals(currentFieldName)) {
-                    aggs = Aggregations.fromXContent(parser);
+                } else if (Aggregations.AGGREGATIONS_FIELD.equals(currentFieldName)) { // aggregations部分解析
+                    aggs = Aggregations.fromXContent(parser); //
                 } else if (Suggest.NAME.equals(currentFieldName)) {
                     suggest = Suggest.fromXContent(parser);
                 } else if (SearchProfileShardResults.PROFILE_FIELD.equals(currentFieldName)) {
                     profile = SearchProfileShardResults.fromXContent(parser);
-                } else if (RestActions._SHARDS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                } else if (RestActions._SHARDS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) { // 进入_shard部分
                     while ((token = parser.nextToken()) != Token.END_OBJECT) {
                         if (token == Token.FIELD_NAME) {
                             currentFieldName = parser.currentName();
@@ -336,7 +336,7 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
                             parser.skipChildren();
                         }
                     }
-                } else if (Clusters._CLUSTERS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) {
+                } else if (Clusters._CLUSTERS_FIELD.match(currentFieldName, parser.getDeprecationHandler())) { // 进入_clustersb部分，貌似还没见过该字段
                     int successful = -1;
                     int total = -1;
                     int skipped = -1;

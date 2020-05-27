@@ -28,7 +28,7 @@ import java.io.IOException;
  * Base request for master based read operations that allows to read the cluster state from the local node if needed
  */
 public abstract class MasterNodeReadRequest<Request extends MasterNodeReadRequest<Request>> extends MasterNodeRequest<Request> {
-
+    // 是否可以直接返回本节点的信息，而不是从master处获取
     protected boolean local = false;
 
     protected MasterNodeReadRequest() {

@@ -35,7 +35,7 @@ import java.util.function.BiConsumer;
 
 /**
  * A refresh listener that tracks the amount of memory used by segments in the accounting circuit breaker.
- */
+ */  //统计segment常驻内存的空间，并放入accounting熔断器刷新
 final class RamAccountingRefreshListener implements BiConsumer<ElasticsearchDirectoryReader, ElasticsearchDirectoryReader> {
 
     private final CircuitBreakerService breakerService;
@@ -43,17 +43,17 @@ final class RamAccountingRefreshListener implements BiConsumer<ElasticsearchDire
     RamAccountingRefreshListener(CircuitBreakerService breakerService) {
         this.breakerService = breakerService;
     }
-
+    // 某个shard的Lucene索引结构
     @Override
     public void accept(ElasticsearchDirectoryReader reader, ElasticsearchDirectoryReader previousReader) {
-        final CircuitBreaker breaker = breakerService.getBreaker(CircuitBreaker.ACCOUNTING);
+        final CircuitBreaker breaker = breakerService.getBreaker(CircuitBreaker.ACCOUNTING); // Accounting熔断器
 
         // Construct a list of the previous segment readers, we only want to track memory used
         // by new readers, so these will be exempted from the circuit breaking accounting.
         //
         // The Core CacheKey is used as the key for the set so that deletions still keep the correct
         // accounting, as using the Reader or Reader's CacheKey causes incorrect accounting.
-        final Set<IndexReader.CacheKey> prevReaders;
+        final Set<IndexReader.CacheKey> prevReaders; //
         if (previousReader == null) {
             prevReaders = Collections.emptySet();
         } else {
@@ -64,17 +64,17 @@ final class RamAccountingRefreshListener implements BiConsumer<ElasticsearchDire
             }
         }
 
-        for (LeafReaderContext lrc : reader.leaves()) {
+        for (LeafReaderContext lrc : reader.leaves()) { //遍历每一个新的segment
             final SegmentReader segmentReader = Lucene.segmentReader(lrc.reader());
             // don't add the segment's memory unless it is not referenced by the previous reader
             // (only new segments)
-            if (prevReaders.contains(segmentReader.getCoreCacheHelper().getKey()) == false) {
-                final long ramBytesUsed = segmentReader.ramBytesUsed();
+            if (prevReaders.contains(segmentReader.getCoreCacheHelper().getKey()) == false) {// 只有对新加的segment才统计内存使用
+                final long ramBytesUsed = segmentReader.ramBytesUsed(); //
                 // add the segment memory to the breaker (non-breaking)
                 breaker.addWithoutBreaking(ramBytesUsed);
                 // and register a listener for when the segment is closed to decrement the
-                // breaker accounting
-                segmentReader.getCoreCacheHelper().addClosedListener(k -> breaker.addWithoutBreaking(-ramBytesUsed));
+                // breaker accounting // 当段关闭的时候，需要从Accounting熔断器中去掉
+                segmentReader.getCoreCacheHelper().addClosedListener(k -> breaker.addWithoutBreaking(-ramBytesUsed)); //
             }
         }
     }

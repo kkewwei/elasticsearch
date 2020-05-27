@@ -123,7 +123,7 @@ public class GatewayMetaState implements Closeable {
             final IncrementalClusterStateWriter incrementalClusterStateWriter
                 = new IncrementalClusterStateWriter(settings, clusterService.getClusterSettings(), metaStateService,
                 manifestClusterStateTuple.v1(),
-                prepareInitialClusterState(transportService, clusterService, clusterState),
+                prepareInitialClusterState(transportService, clusterService, clusterState),// 初始化一个过去的ClusterState
                 transportService.getThreadPool()::relativeTimeInMillis);
 
             if (DiscoveryNode.isMasterNode(settings) || DiscoveryNode.isDataNode(settings)) {
@@ -186,7 +186,7 @@ public class GatewayMetaState implements Closeable {
             } catch (IOException e) {
                 throw new ElasticsearchException("failed to load metadata", e);
             }
-        } else {
+        } else {// 本节点有master节点属性
             final long currentTerm = 0L;
             final ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.get(settings)).build();
             if (persistedClusterStateService.getDataPaths().length > 0) {
@@ -217,7 +217,7 @@ public class GatewayMetaState implements Closeable {
         assert transportService.getLocalNode() != null : "transport service is not yet started";
         return Function.<ClusterState>identity()
             .andThen(ClusterStateUpdaters::addStateNotRecoveredBlock)
-            .andThen(state -> ClusterStateUpdaters.setLocalNode(state, transportService.getLocalNode()))
+            .andThen(state -> ClusterStateUpdaters.setLocalNode(state, transportService.getLocalNode())) // 设置了nodes中的本节点，以及设置local节点
             .andThen(state -> ClusterStateUpdaters.upgradeAndArchiveUnknownOrInvalidSettings(state, clusterService.getClusterSettings()))
             .andThen(ClusterStateUpdaters::recoverClusterBlocks)
             .apply(clusterState);
@@ -487,7 +487,7 @@ public class GatewayMetaState implements Closeable {
             // In the common case it's actually sufficient to commit() the existing state and not do any indexing. For instance,
             // this is true if there's only one data path on this master node, and the commit we just loaded was already written out
             // by this version of Elasticsearch. TODO TBD should we avoid indexing when possible?
-            final PersistedClusterStateService.Writer writer = persistedClusterStateService.createWriter();
+            final PersistedClusterStateService.Writer writer = persistedClusterStateService.createWriter(); // 加载存在的索引结构
             try {
                 writer.writeFullStateAndCommit(currentTerm, lastAcceptedState);
             } catch (Exception e) {
@@ -512,7 +512,7 @@ public class GatewayMetaState implements Closeable {
         }
 
         @Override
-        public void setCurrentTerm(long currentTerm) {
+        public void setCurrentTerm(long currentTerm) { // 就是持久化
             try {
                 if (writeNextStateFully) {
                     getWriterSafe().writeFullStateAndCommit(currentTerm, lastAcceptedState);
@@ -527,7 +527,7 @@ public class GatewayMetaState implements Closeable {
         }
 
         @Override
-        public void setLastAcceptedState(ClusterState clusterState) {
+        public void setLastAcceptedState(ClusterState clusterState) {// 就是持久化
             try {
                 if (writeNextStateFully) {
                     getWriterSafe().writeFullStateAndCommit(currentTerm, clusterState);

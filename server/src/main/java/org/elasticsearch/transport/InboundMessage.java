@@ -54,46 +54,46 @@ public abstract class InboundMessage extends NetworkMessage implements Closeable
         private final ThreadContext threadContext;
 
         Reader(Version version, NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
-            this.version = version;
+            this.version = version; // 从Netty4Plugin.getTransports中获取的当前client版本号
             this.namedWriteableRegistry = namedWriteableRegistry;
             this.threadContext = threadContext;
         }
-
+        // 和OutboundMessage的serialize一样：r： （es + length） + request_id + status + version
         InboundMessage deserialize(BytesReference reference) throws IOException {
             StreamInput streamInput = reference.streamInput();
             boolean success = false;
             try (ThreadContext.StoredContext existing = threadContext.stashContext()) {
                 long requestId = streamInput.readLong();
-                byte status = streamInput.readByte();
-                Version remoteVersion = Version.fromId(streamInput.readInt());
+                byte status = streamInput.readByte(); // 是否压缩
+                Version remoteVersion = Version.fromId(streamInput.readInt()); // 使用
                 final boolean isHandshake = TransportStatus.isHandshake(status);
-                ensureVersionCompatibility(remoteVersion, version, isHandshake);
+                ensureVersionCompatibility(remoteVersion, version, isHandshake); // 确保版本一直
 
-                if (remoteVersion.onOrAfter(TcpHeader.VERSION_WITH_HEADER_SIZE)) {
+                if (remoteVersion.onOrAfter(TcpHeader.VERSION_WITH_HEADER_SIZE)) { // 若远程版本大于7.6之后
                     // Consume the variable header size
                     streamInput.readInt();
-                } else {
+                } else { // 啥都没干
                     streamInput = decompressingStream(status, remoteVersion, streamInput);
                 }
 
                 threadContext.readHeaders(streamInput);
 
                 InboundMessage message;
-                if (TransportStatus.isRequest(status)) {
+                if (TransportStatus.isRequest(status)) { // 为8
                     final Set<String> features;
-                    if (remoteVersion.onOrAfter(Version.V_6_3_0)) {
+                    if (remoteVersion.onOrAfter(Version.V_6_3_0)) { // cleint能兼容的最低版本
                         final String[] featuresFound = streamInput.readStringArray();
                         if (featuresFound.length == 0) {
                             features = Collections.emptySet();
-                        } else {
-                            features = Collections.unmodifiableSet(new TreeSet<>(Arrays.asList(featuresFound)));
+                        } else { // 跑这里
+                            features = Collections.unmodifiableSet(new TreeSet<>(Arrays.asList(featuresFound))); // ["transport_client"]
                         }
                     } else {
                         features = Collections.emptySet();
                     }
                     final String action = streamInput.readString();
 
-                    if (remoteVersion.onOrAfter(TcpHeader.VERSION_WITH_HEADER_SIZE)) {
+                    if (remoteVersion.onOrAfter(TcpHeader.VERSION_WITH_HEADER_SIZE)) { //跳过
                         streamInput = decompressingStream(status, remoteVersion, streamInput);
                     }
                     streamInput = namedWriteableStream(streamInput, remoteVersion);

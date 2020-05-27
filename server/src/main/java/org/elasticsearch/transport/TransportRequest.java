@@ -67,6 +67,6 @@ public abstract class TransportRequest extends TransportMessage implements TaskA
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        parentTaskId.writeTo(out);
+        parentTaskId.writeTo(out); // CompressibleBytesOutputStream
     }
 }

@@ -93,7 +93,7 @@ import java.util.function.Supplier;
  * Stores cluster metadata in a bare Lucene index (per data path) split across a number of documents. This is used by master-eligible nodes
  * to record the last-accepted cluster state during publication. The metadata is written incrementally where possible, leaving alone any
  * documents that have not changed. The index has the following fields:
- *
+ * 看样子集群元数据中仅包含这两个文档内容
  * +------------------------------+-----------------------------+----------------------------------------------+
  * | "type" (string field)        | "index_uuid" (string field) | "data" (stored binary field in SMILE format) |
  * +------------------------------+-----------------------------+----------------------------------------------+
@@ -173,11 +173,11 @@ public class PersistedClusterStateService {
         final List<Closeable> closeables = new ArrayList<>();
         boolean success = false;
         try {
-            for (final Path path : dataPaths) {
+            for (final Path path : dataPaths) { // 直接扫描路径，不管有无数据，分别建立IndexWriter向全局状态中写入数据:data1/nodes/0/_state
                 final Directory directory = createDirectory(path.resolve(METADATA_DIRECTORY_NAME));
                 closeables.add(directory);
-
-                final IndexWriter indexWriter = createIndexWriter(directory, false);
+                // 对集群元数据，也是用lucene的结构进行保存。更新式的操作
+                final IndexWriter indexWriter = createIndexWriter(directory, false); // 进来
                 closeables.add(indexWriter);
                 metaDataIndexWriters.add(new MetaDataIndexWriter(directory, indexWriter));
             }
@@ -189,7 +189,7 @@ public class PersistedClusterStateService {
         }
         return new Writer(metaDataIndexWriters, nodeId, bigArrays, relativeTimeMillisSupplier, () -> slowWriteLoggingThreshold);
     }
-
+    // 对存量的segment索引结构跑到这里，其中openExisting为false
     private static IndexWriter createIndexWriter(Directory directory, boolean openExisting) throws IOException {
         final IndexWriterConfig indexWriterConfig = new IndexWriterConfig(new KeywordAnalyzer());
         // start empty since we re-write the whole cluster state to ensure it is all using the same format version
@@ -197,7 +197,7 @@ public class PersistedClusterStateService {
         // only commit when specifically instructed, we must not write any intermediate states
         indexWriterConfig.setCommitOnClose(false);
         // most of the data goes into stored fields which are not buffered, so we only really need a tiny buffer
-        indexWriterConfig.setRAMBufferSizeMB(1.0);
+        indexWriterConfig.setRAMBufferSizeMB(1.0); //
         // merge on the write thread (e.g. while flushing)
         indexWriterConfig.setMergeScheduler(new SerialMergeScheduler());
 
@@ -490,12 +490,12 @@ public class PersistedClusterStateService {
             this.indexWriter = indexWriter;
             this.logger = Loggers.getLogger(MetaDataIndexWriter.class, directory.toString());
         }
-
+        // 丢弃保留的segment里面所有的单个索引文件
         void deleteAll() throws IOException {
             this.logger.trace("clearing existing metadata");
             this.indexWriter.deleteAll();
         }
-
+        // 更新的是0/_state/里面的索引结构，并不止单单一个文件
         void updateIndexMetaDataDocument(Document indexMetaDataDocument, Index index) throws IOException {
             this.logger.trace("updating metadata for [{}]", index);
             indexWriter.updateDocument(new Term(INDEX_UUID_FIELD_NAME, index.getUUID()), indexMetaDataDocument);
@@ -504,7 +504,7 @@ public class PersistedClusterStateService {
         void updateGlobalMetaData(Document globalMetaDataDocument) throws IOException {
             this.logger.trace("updating global metadata doc");
             indexWriter.updateDocument(new Term(TYPE_FIELD_NAME, GLOBAL_TYPE_NAME), globalMetaDataDocument);
-        }
+        } // 将包含type:global的集群全局元数据给替换掉
 
         void deleteIndexMetaData(String indexUUID) throws IOException {
             this.logger.trace("removing metadata for [{}]", indexUUID);
@@ -515,7 +515,7 @@ public class PersistedClusterStateService {
             this.logger.trace("flushing");
             this.indexWriter.flush();
         }
-
+        // 设置userData
         void prepareCommit(String nodeId, long currentTerm, long lastAcceptedVersion) throws IOException {
             final Map<String, String> commitData = new HashMap<>(COMMIT_DATA_SIZE);
             commitData.put(CURRENT_TERM_KEY, Long.toString(currentTerm));
@@ -585,7 +585,7 @@ public class PersistedClusterStateService {
             try {
                 final long startTimeMillis = relativeTimeMillisSupplier.getAsLong();
                 final WriterStats stats = overwriteMetaData(clusterState.metaData());
-                commit(currentTerm, clusterState.version());
+                commit(currentTerm, clusterState.version()); //
                 fullStateWritten = true;
                 final long durationMillis = relativeTimeMillisSupplier.getAsLong() - startTimeMillis;
                 final TimeValue finalSlowWriteLoggingThreshold = slowWriteLoggingThresholdSupplier.get();
@@ -706,7 +706,7 @@ public class PersistedClusterStateService {
          * Add documents for the metadata of the given cluster state, assuming that there are currently no documents.
          */
         private WriterStats addMetaData(MetaData metaData) throws IOException {
-            try (ReleasableDocument globalMetaDataDocument = makeGlobalMetaDataDocument(metaData)) {
+            try (ReleasableDocument globalMetaDataDocument = makeGlobalMetaDataDocument(metaData)) { // 替换集群元数据
                 for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
                     metaDataIndexWriter.updateGlobalMetaData(globalMetaDataDocument.getDocument());
                 }
@@ -714,7 +714,7 @@ public class PersistedClusterStateService {
 
             for (ObjectCursor<IndexMetaData> cursor : metaData.indices().values()) {
                 final IndexMetaData indexMetaData = cursor.value;
-                try (ReleasableDocument indexMetaDataDocument = makeIndexMetaDataDocument(indexMetaData)) {
+                try (ReleasableDocument indexMetaDataDocument = makeIndexMetaDataDocument(indexMetaData)) { // 索引级别
                     for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
                         metaDataIndexWriter.updateIndexMetaDataDocument(indexMetaDataDocument.getDocument(), indexMetaData.getIndex());
                     }
@@ -729,12 +729,12 @@ public class PersistedClusterStateService {
 
             return new WriterStats(true, metaData.indices().size(), 0);
         }
-
+       // commit 分两步
         public void commit(long currentTerm, long lastAcceptedVersion) throws IOException {
             ensureOpen();
             try {
                 for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
-                    metaDataIndexWriter.prepareCommit(nodeId, currentTerm, lastAcceptedVersion);
+                    metaDataIndexWriter.prepareCommit(nodeId, currentTerm, lastAcceptedVersion); // 有产生下一代的pending_segments_(n+1)
                 }
             } catch (Exception e) {
                 try {
@@ -749,7 +749,7 @@ public class PersistedClusterStateService {
             }
             try {
                 for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
-                    metaDataIndexWriter.commit();
+                    metaDataIndexWriter.commit();// 会发生真正的commit
                 }
             } catch (IOException e) {
                 // The commit() call has similar semantics to a fsync(): although it's atomic, if it fails then we've no idea whether the
@@ -808,7 +808,7 @@ public class PersistedClusterStateService {
 
         private ReleasableDocument makeDocument(String typeName, ToXContent metaData) throws IOException {
             final Document document = new Document();
-            document.add(new StringField(TYPE_FIELD_NAME, typeName, Field.Store.NO));
+            document.add(new StringField(TYPE_FIELD_NAME, typeName, Field.Store.NO)); // type:index
 
             boolean success = false;
             final ReleasableBytesStreamOutput releasableBytesStreamOutput = new ReleasableBytesStreamOutput(bigArrays);
@@ -824,7 +824,7 @@ public class PersistedClusterStateService {
                     metaData.toXContent(xContentBuilder, FORMAT_PARAMS);
                     xContentBuilder.endObject();
                 }
-                document.add(new StoredField(DATA_FIELD_NAME, releasableBytesStreamOutput.bytes().toBytesRef()));
+                document.add(new StoredField(DATA_FIELD_NAME, releasableBytesStreamOutput.bytes().toBytesRef()));// data:dssdsd
                 final ReleasableDocument releasableDocument = new ReleasableDocument(document, releasableBytesStreamOutput);
                 success = true;
                 return releasableDocument;

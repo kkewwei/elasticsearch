@@ -249,7 +249,7 @@ public abstract class StreamOutput extends OutputStream {
      * Writes an int as four bytes.
      */
     public void writeInt(int i) throws IOException {
-        final byte[] buffer = scratch.get();
+        final byte[] buffer = scratch.get(); // 每个线程都有一个
         buffer[0] = (byte) (i >> 24);
         buffer[1] = (byte) (i >> 16);
         buffer[2] = (byte) (i >> 8);
@@ -529,7 +529,7 @@ public abstract class StreamOutput extends OutputStream {
 
     public void writeStringArray(String[] array) throws IOException {
         writeVInt(array.length);
-        for (String s : array) {
+        for (String s : array) { //默认["transport_cliet"]
             writeString(s);
         }
     }

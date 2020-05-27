@@ -73,7 +73,7 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
     protected final NetworkService networkService;
     protected final BigArrays bigArrays;
     protected final ThreadPool threadPool;
-    protected final Dispatcher dispatcher;
+    protected final Dispatcher dispatcher; // RestController
     protected final CorsHandler.Config corsConfig;
     private final NamedXContentRegistry xContentRegistry;
 
@@ -82,12 +82,12 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
     private final String[] bindHosts;
     private final String[] publishHosts;
 
-    private volatile BoundTransportAddress boundAddress;
+    private volatile BoundTransportAddress boundAddress; // 有啥用嘛
     private final AtomicLong totalChannelsAccepted = new AtomicLong();
     private final Set<HttpChannel> httpChannels = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<HttpServerChannel> httpServerChannels = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    private final HttpTracer tracer;
+    private final HttpTracer tracer; // HttpTracer
 
     protected AbstractHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool,
                                           NamedXContentRegistry xContentRegistry, Dispatcher dispatcher, ClusterSettings clusterSettings) {
@@ -109,7 +109,7 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
         this.publishHosts = (httpPublishHost.isEmpty() ? NetworkService.GLOBAL_NETWORK_PUBLISH_HOST_SETTING.get(settings) : httpPublishHost)
             .toArray(Strings.EMPTY_ARRAY);
 
-        this.port = SETTING_HTTP_PORT.get(settings);
+        this.port = SETTING_HTTP_PORT.get(settings); // 端口的范围是9200-9300
 
         this.maxContentLength = SETTING_HTTP_MAX_CONTENT_LENGTH.get(settings);
         this.tracer = new HttpTracer(settings, clusterSettings);
@@ -145,7 +145,7 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
 
         List<TransportAddress> boundAddresses = new ArrayList<>(hostAddresses.length);
         for (InetAddress address : hostAddresses) {
-            boundAddresses.add(bindAddress(address));
+            boundAddresses.add(bindAddress(address)); // 绑定端口
         }
 
         final InetAddress publishInetAddress;
@@ -164,7 +164,7 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
     private TransportAddress bindAddress(final InetAddress hostAddress) {
         final AtomicReference<Exception> lastException = new AtomicReference<>();
         final AtomicReference<InetSocketAddress> boundSocket = new AtomicReference<>();
-        boolean success = port.iterate(portNumber -> {
+        boolean success = port.iterate(portNumber -> { // 只要一个成功就ok
             try {
                 synchronized (httpServerChannels) {
                     HttpServerChannel httpServerChannel = bind(new InetSocketAddress(hostAddress, portNumber));

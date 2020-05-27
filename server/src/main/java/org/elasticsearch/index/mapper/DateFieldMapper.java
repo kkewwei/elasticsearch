@@ -473,7 +473,7 @@ public final class DateFieldMapper extends FieldMapper {
 
             long fromInclusive = Long.MIN_VALUE;
             if (from != null) {
-                fromInclusive = parseToLong(from, !includeLower, timeZone, dateParser, context::nowInMillis);
+                fromInclusive = parseToLong(from, !includeLower, timeZone, dateParser, context::nowInMillis);// 将二进制的BytesRef转变为具体的数字
                 if (includeLower == false) {
                     if (fromInclusive == Long.MAX_VALUE) {
                         return Relation.DISJOINT;
@@ -521,7 +521,7 @@ public final class DateFieldMapper extends FieldMapper {
                 // no points, so nothing matches
                 return Relation.DISJOINT;
             }
-
+            // 获取存储的范围
             long minValue = LongPoint.decodeDimension(PointValues.getMinPackedValue(reader, name()), 0);
             long maxValue = LongPoint.decodeDimension(PointValues.getMaxPackedValue(reader, name()), 0);
 

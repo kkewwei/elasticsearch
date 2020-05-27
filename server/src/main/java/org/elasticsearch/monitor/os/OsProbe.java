@@ -59,7 +59,7 @@ import java.util.stream.Collectors;
  * - An error case retrieving these values from a linux kernel
  * - A non-standard libc implementation not implementing the required values
  * For a more exhaustive explanation, see https://github.com/elastic/elasticsearch/pull/42725
- */
+ */  // 直接是机器硬件的获取
 public class OsProbe {
 
     private static final OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
@@ -72,7 +72,7 @@ public class OsProbe {
     private static final Method getSystemCpuLoad;
 
     static {
-        getFreePhysicalMemorySize = getMethod("getFreePhysicalMemorySize");
+        getFreePhysicalMemorySize = getMethod("getFreePhysicalMemorySize"); // 统计的不包含buffer和cache
         getTotalPhysicalMemorySize = getMethod("getTotalPhysicalMemorySize");
         getFreeSwapSpaceSize = getMethod("getFreeSwapSpaceSize");
         getTotalSwapSpaceSize = getMethod("getTotalSwapSpaceSize");

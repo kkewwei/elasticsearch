@@ -64,13 +64,13 @@ public final class EngineConfig {
     private final ThreadPool threadPool;
     private final Engine.Warmer warmer;
     private final Store store;
-    private final MergePolicy mergePolicy;
+    private final MergePolicy mergePolicy; // EsTieredMergePolicy
     private final Analyzer analyzer;
     private final Similarity similarity;
     private final CodecService codecService;
     private final Engine.EventListener eventListener;
-    private final QueryCache queryCache;
-    private final QueryCachingPolicy queryCachingPolicy;
+    private final QueryCache queryCache; // OptOutQueryCache
+    private final QueryCachingPolicy queryCachingPolicy; // UsageTrackingQueryCachingPolicy
     @Nullable
     private final List<ReferenceManager.RefreshListener> externalRefreshListener;
     @Nullable
@@ -313,7 +313,7 @@ public final class EngineConfig {
      * Return the cache to use for queries.
      */
     public QueryCache getQueryCache() {
-        return queryCache;
+        return queryCache; // OptOutQueryCache
     }
 
     /**

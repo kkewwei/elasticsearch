@@ -122,7 +122,7 @@ public class QueryPhase implements SearchPhase {
             cancellation = null;
         }
         try {
-            context.preProcess(true);
+            context.preProcess(true); // 在查询前很早会对query进行rewrite
         } finally {
             if (cancellation != null) {
                 context.searcher().removeQueryCancellation(cancellation);
@@ -132,7 +132,7 @@ public class QueryPhase implements SearchPhase {
 
     @Override
     public void execute(SearchContext searchContext) throws QueryPhaseExecutionException {
-        if (searchContext.hasOnlySuggest()) {
+        if (searchContext.hasOnlySuggest()) { // 跳过
             suggestPhase.execute(searchContext);
             searchContext.queryResult().topDocs(new TopDocsAndMaxScore(
                     new TopDocs(new TotalHits(0, TotalHits.Relation.EQUAL_TO), Lucene.EMPTY_SCORE_DOCS), Float.NaN),
@@ -148,7 +148,7 @@ public class QueryPhase implements SearchPhase {
         // request, preProcess is called on the DFS phase phase, this is why we pre-process them
         // here to make sure it happens during the QUERY phase
         aggregationPhase.preProcess(searchContext);
-        boolean rescore = executeInternal(searchContext);
+        boolean rescore = executeInternal(searchContext); // 进来，真正查询
 
         if (rescore) { // only if we do a regular search
             rescorePhase.execute(searchContext);
@@ -171,14 +171,14 @@ public class QueryPhase implements SearchPhase {
     static boolean executeInternal(SearchContext searchContext) throws QueryPhaseExecutionException {
         final ContextIndexSearcher searcher = searchContext.searcher();
         SortAndFormats sortAndFormatsForRewrittenNumericSort = null;
-        final IndexReader reader = searcher.getIndexReader();
+        final IndexReader reader = searcher.getIndexReader();   // 查询时是ExitableLeafReader
         QuerySearchResult queryResult = searchContext.queryResult();
         queryResult.searchTimedOut(false);
         try {
             queryResult.from(searchContext.from());
             queryResult.size(searchContext.size());
-            Query query = searchContext.query();
-            assert query == searcher.rewrite(query); // already rewritten
+            Query query = searchContext.query();// BoostQuery，也可以是BooleanQuery
+            assert query == searcher.rewrite(query); // already rewritten, 判定query不能再重写了
 
             final ScrollContext scrollContext = searchContext.scrollContext();
             if (scrollContext != null) {
@@ -217,25 +217,25 @@ public class QueryPhase implements SearchPhase {
             final LinkedList<QueryCollectorContext> collectors = new LinkedList<>();
             // whether the chain contains a collector that filters documents
             boolean hasFilterCollector = false;
-            if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER) {
+            if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER) { // 跳过
                 // add terminate_after before the filter collectors
                 // it will only be applied on documents accepted by these filter collectors
                 collectors.add(createEarlyTerminationCollectorContext(searchContext.terminateAfter()));
                 // this collector can filter documents during the collection
                 hasFilterCollector = true;
             }
-            if (searchContext.parsedPostFilter() != null) {
+            if (searchContext.parsedPostFilter() != null) { // 跳过
                 // add post filters before aggregations
                 // it will only be applied to top hits
                 collectors.add(createFilteredCollectorContext(searcher, searchContext.parsedPostFilter().query()));
                 // this collector can filter documents during the collection
                 hasFilterCollector = true;
             }
-            if (searchContext.queryCollectors().isEmpty() == false) {
+            if (searchContext.queryCollectors().isEmpty() == false) { // 跳过
                 // plug in additional collectors, like aggregations
                 collectors.add(createMultiCollectorContext(searchContext.queryCollectors().values()));
             }
-            if (searchContext.minimumScore() != null) {
+            if (searchContext.minimumScore() != null) { // 跳过
                 // apply the minimum score after multi collector so we filter aggs as well
                 collectors.add(createMinScoreCollectorContext(searchContext.minimumScore()));
                 // this collector can filter documents during the collection
@@ -267,7 +267,7 @@ public class QueryPhase implements SearchPhase {
                 searchContext.timeout().equals(SearchService.NO_TIMEOUT) == false;
 
             final Runnable timeoutRunnable;
-            if (timeoutSet) {
+            if (timeoutSet) { // 超时设置
                 final long startTime = searchContext.getRelativeTimeInMillis();
                 final long timeout = searchContext.timeout().millis();
                 final long maxTime = startTime + timeout;
@@ -295,7 +295,7 @@ public class QueryPhase implements SearchPhase {
                 // if we are optimizing sort and there are no other collectors
                 if (sortAndFormatsForRewrittenNumericSort!=null && collectors.size()==0 && searchContext.getProfilers()==null) {
                     shouldRescore = searchWithCollectorManager(searchContext, searcher, query, leafSorter, timeoutSet);
-                } else {
+                } else { // 进来了，真正的查询在里面
                     shouldRescore = searchWithCollector(searchContext, searcher, query, collectors, hasFilterCollector, timeoutSet);
                 }
 
@@ -315,7 +315,7 @@ public class QueryPhase implements SearchPhase {
             } finally {
                 // Search phase has finished, no longer need to check for timeout
                 // otherwise aggregation phase might get cancelled.
-                if (timeoutRunnable!=null) {
+                if (timeoutRunnable!=null) {// 如果超时就取消
                     searcher.removeQueryCancellation(timeoutRunnable);
                 }
             }
@@ -337,11 +337,11 @@ public class QueryPhase implements SearchPhase {
             searchContext.getProfilers().getCurrentQueryProfiler().setCollector(profileCollector);
             queryCollector = profileCollector;
         } else {
-            queryCollector = QueryCollectorContext.createQueryCollector(collectors);
+            queryCollector = QueryCollectorContext.createQueryCollector(collectors); // SimpleTopDocsCollector
         }
         QuerySearchResult queryResult = searchContext.queryResult();
         try {
-            searcher.search(query, queryCollector);
+            searcher.search(query, queryCollector); //queryCollector= SimpleTopScoreDocCollector
         } catch (EarlyTerminatingCollector.EarlyTerminationException e) {
             queryResult.terminatedEarly(true);
         } catch (TimeExceededException e) {
@@ -362,7 +362,6 @@ public class QueryPhase implements SearchPhase {
         }
         return topDocsFactory.shouldRescore();
     }
-
 
     /*
      * We use collectorManager during sort optimization, where

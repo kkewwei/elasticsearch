@@ -227,17 +227,17 @@ public final class ThreadContext implements Writeable {
             return context;
         };
     }
-
+    //主要是写入defaultHeader
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        threadLocal.get().writeTo(out, defaultHeader);
+        threadLocal.get().writeTo(out, defaultHeader); // 会跑入：ThreadContextStruct里面，写入header,默认header为空
     }
 
     /**
      * Reads the headers from the stream into the current context
      */
     public void readHeaders(StreamInput in) throws IOException {
-        final Tuple<Map<String, String>, Map<String, Set<String>>> streamTuple = readHeadersFromStream(in);
+        final Tuple<Map<String, String>, Map<String, Set<String>>> streamTuple = readHeadersFromStream(in); // 不过什么都没有
         final Map<String, String>  requestHeaders = streamTuple.v1();
         final Map<String, Set<String>> responseHeaders = streamTuple.v2();
         final ThreadContextStruct struct;
@@ -594,22 +594,22 @@ public final class ThreadContext implements Writeable {
             }
             return putHeaders(newHeaders);
         }
-
+       // 主要是写入header
         private void writeTo(StreamOutput out, Map<String, String> defaultHeaders) throws IOException {
             final Map<String, String> requestHeaders;
-            if (defaultHeaders.isEmpty()) {
+            if (defaultHeaders.isEmpty()) { // 默认为空
                 requestHeaders = this.requestHeaders;
             } else {
                 requestHeaders = new HashMap<>(defaultHeaders);
                 requestHeaders.putAll(this.requestHeaders);
             }
-
+            // 写入header长度，默认为0
             out.writeVInt(requestHeaders.size());
             for (Map.Entry<String, String> entry : requestHeaders.entrySet()) {
                 out.writeString(entry.getKey());
                 out.writeString(entry.getValue());
             }
-
+            // 再次写入responseHeaders内容，感觉有点多余这里
             out.writeMap(responseHeaders, StreamOutput::writeString, StreamOutput::writeStringCollection);
         }
     }

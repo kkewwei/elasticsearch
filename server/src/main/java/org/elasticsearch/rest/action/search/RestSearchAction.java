@@ -113,7 +113,7 @@ public class RestSearchAction extends BaseRestHandler {
             parseSearchRequest(searchRequest, request, parser, setSize));
 
         return channel -> {
-            RestCancellableNodeClient cancelClient = new RestCancellableNodeClient(client, request.getHttpChannel());
+            RestCancellableNodeClient cancelClient = new RestCancellableNodeClient(client, request.getHttpChannel()); // client=NodeClient
             cancelClient.execute(SearchAction.INSTANCE, searchRequest, new RestStatusToXContentListener<>(channel));
         };
     }

@@ -133,7 +133,7 @@ public class SearchTransportService {
         final boolean fetchDocuments = request.numberOfShards() == 1;
         Writeable.Reader<SearchPhaseResult> reader = fetchDocuments ? QueryFetchSearchResult::new : QuerySearchResult::new;
 
-        final ActionListener handler = responseWrapper.apply(connection, listener);
+        final ActionListener handler = responseWrapper.apply(connection, listener);  // 跑到SearchExecutionStatsCollector.makeWrapper处建立SearchExecutionStatsCollector对象
         transportService.sendChildRequest(connection, QUERY_ACTION_NAME, request, task,
                 new ConnectionCountingHandler<>(handler, reader, clientConnections, connection.getNode().getId()));
     }
@@ -345,7 +345,7 @@ public class SearchTransportService {
         TransportActionProxy.registerProxyAction(transportService, FETCH_ID_SCROLL_ACTION_NAME, FetchSearchResult::new);
 
         transportService.registerRequestHandler(FETCH_ID_ACTION_NAME, ThreadPool.Names.SAME, true, true, ShardFetchSearchRequest::new,
-            (request, channel, task) -> {
+            (request, channel, task) -> { // 从这里进去加载单个id的source
                 searchService.executeFetchPhase(request, (SearchShardTask) task,
                     new ChannelActionListener<>(channel, FETCH_ID_ACTION_NAME, request));
             });

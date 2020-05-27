@@ -39,8 +39,7 @@ import java.util.List;
  * {@link ShardRouting} immutably encapsulates information about shard
  * indexRoutings like id, state, version, etc.
  */
-public final class ShardRouting implements Writeable, ToXContentObject {
-
+public final class ShardRouting implements Writeable, ToXContentObject { // 可以分别表示主副本
     /**
      * Used if shard size is not available
      */
@@ -53,7 +52,7 @@ public final class ShardRouting implements Writeable, ToXContentObject {
     private final ShardRoutingState state;
     private final RecoverySource recoverySource;
     private final UnassignedInfo unassignedInfo;
-    private final AllocationId allocationId;
+    private final AllocationId allocationId; // 是否是同一批分配的。
     private final transient List<ShardRouting> asList;
     private final long expectedShardSize;
     @Nullable
@@ -345,7 +344,7 @@ public final class ShardRouting implements Writeable, ToXContentObject {
         assert relocatingNodeId == null : this;
         final AllocationId allocationId;
         if (existingAllocationId == null) {
-            allocationId = AllocationId.newInitializing();
+            allocationId = AllocationId.newInitializing(); //
         } else {
             allocationId = AllocationId.newInitializing(existingAllocationId);
         }

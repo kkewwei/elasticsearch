@@ -44,14 +44,14 @@ public final class CountDown {
     /**
      * Decrements the count-down and returns <code>true</code> iff this call
      * reached zero otherwise <code>false</code>
-     */
+     */ // 返回true的条件时current=1
     public boolean countDown() {
         assert originalCount > 0;
         for (;;) {
             final int current = countDown.get();
             assert current >= 0;
             if (current == 0) {
-                return false;
+                return false; // 不能再继续减少了
             }
             if (countDown.compareAndSet(current, current - 1)) {
                 return current == 1;

@@ -444,7 +444,7 @@ public class ObjectMapper extends Mapper implements Cloneable {
         return merged;
     }
 
-    protected void doMerge(final ObjectMapper mergeWith) {
+    protected void doMerge(final ObjectMapper mergeWith) { // 需要合并的mapping
         if (nested().isNested()) {
             if (!mergeWith.nested().isNested()) {
                 throw new IllegalArgumentException("object mapping [" + name() + "] can't be changed from nested to non-nested");

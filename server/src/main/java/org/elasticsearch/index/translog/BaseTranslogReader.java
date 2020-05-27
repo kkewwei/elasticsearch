@@ -33,8 +33,8 @@ import java.nio.file.Path;
  */
 public abstract class BaseTranslogReader implements Comparable<BaseTranslogReader> {
 
-    protected final long generation;
-    protected final FileChannel channel;
+    protected final long generation; // 当前check版本
+    protected final FileChannel channel; // translog-80.tlog
     protected final Path path;
     protected final TranslogHeader header;
 

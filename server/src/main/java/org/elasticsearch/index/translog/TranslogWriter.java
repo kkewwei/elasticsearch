@@ -57,9 +57,9 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
     /* if we hit an exception that we can't recover from we assign it to this var and ship it with every AlreadyClosedException we throw */
     private final TragicExceptionHolder tragedy;
     /* A buffered outputstream what writes to the writers channel */
-    private final OutputStream outputStream;
+    private final OutputStream outputStream; // 也指向的translog-x.tlog文件
     /* the total offset of this file including the bytes written to the file as well as into the buffer */
-    private volatile long totalOffset;
+    private volatile long totalOffset; // 包含还在内存buffer、系统cache中的总translog大小
 
     private volatile long minSeqNo;
     private volatile long maxSeqNo;
@@ -171,7 +171,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
         ensureOpen();
         final long offset = totalOffset;
         try {
-            data.writeTo(outputStream);
+            data.writeTo(outputStream); // 只是写入translog.tlog中的大小
         } catch (final Exception ex) {
             closeWithTragicEvent(ex);
             throw ex;
@@ -194,7 +194,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
 
         assert assertNoSeqNumberConflict(seqNo, data);
 
-        return new Translog.Location(generation, offset, data.length());
+        return new Translog.Location(generation, offset, data.length()); // 记录了在translog-x.tlog中的大小（buffer&系统cache），还未落盘
     }
 
     private synchronized boolean assertNoSeqNumberConflict(long seqNo, BytesReference data) throws IOException {
@@ -262,7 +262,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
      *
      * Note: any exception during the sync process will be interpreted as a tragic exception and the writer will be closed before
      * raising the exception.
-     */
+     */ //是创建一个新的translog.ckp文件并刷新到磁盘
     public void sync() throws IOException {
         syncUpTo(Long.MAX_VALUE);
     }
@@ -271,7 +271,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
      * Returns <code>true</code> if there are buffered operations that have not been flushed and fsynced to disk or if the latest global
      * checkpoint has not yet been fsynced
      */
-    public boolean syncNeeded() {
+    public boolean syncNeeded() { // 有修改就刷新
         return totalOffset != lastSyncedCheckpoint.offset ||
             globalCheckpointSupplier.getAsLong() != lastSyncedCheckpoint.globalCheckpoint ||
             minTranslogGenerationSupplier.getAsLong() != lastSyncedCheckpoint.minTranslogGeneration;
@@ -350,10 +350,10 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
      *
      * @return <code>true</code> if this call caused an actual sync operation
      */
-    final boolean syncUpTo(long offset) throws IOException {
+    final boolean syncUpTo(long offset) throws IOException { // 1.强制刷新translog在内存&系统cache中缓存刷到磁盘中 2.创建checkpoint文件并刷盘
         if (lastSyncedCheckpoint.offset < offset && syncNeeded()) {
             synchronized (syncLock) { // only one sync/checkpoint should happen concurrently but we wait
-                if (lastSyncedCheckpoint.offset < offset && syncNeeded()) {
+                if (lastSyncedCheckpoint.offset < offset && syncNeeded()) { // 有修改
                     // double checked locking - we don't want to fsync unless we have to and now that we have
                     // the lock we should check again since if this code is busy we might have fsynced enough already
                     final Checkpoint checkpointToSync;
@@ -361,7 +361,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                     synchronized (this) {
                         ensureOpen();
                         try {
-                            outputStream.flush();
+                            outputStream.flush(); // 啥都没做
                             checkpointToSync = getCheckpoint();
                             flushedSequenceNumbers = nonFsyncedSequenceNumbers;
                             nonFsyncedSequenceNumbers = new LongArrayList(64);
@@ -373,8 +373,8 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                     // now do the actual fsync outside of the synchronized block such that
                     // we can continue writing to the buffer etc.
                     try {
-                        channel.force(false);
-                        writeCheckpoint(channelFactory, path.getParent(), checkpointToSync);
+                        channel.force(false);// // 强制刷新translog在内存&系统cache中缓存刷到磁盘中
+                        writeCheckpoint(channelFactory, path.getParent(), checkpointToSync); // 创建checkpoint文件
                     } catch (final Exception ex) {
                         closeWithTragicEvent(ex);
                         throw ex;
@@ -417,7 +417,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
             final ChannelFactory channelFactory,
             final Path translogFile,
             final Checkpoint checkpoint) throws IOException {
-        Checkpoint.write(channelFactory, translogFile.resolve(Translog.CHECKPOINT_FILE_NAME), checkpoint, StandardOpenOption.WRITE);
+        Checkpoint.write(channelFactory, translogFile.resolve(Translog.CHECKPOINT_FILE_NAME), checkpoint, StandardOpenOption.WRITE); // 向checkoutpoint中写入
     }
 
     /**

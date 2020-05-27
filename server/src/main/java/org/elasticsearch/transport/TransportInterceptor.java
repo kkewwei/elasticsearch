@@ -53,7 +53,7 @@ public interface TransportInterceptor {
      * A simple interface to decorate
      * {@link #sendRequest(Transport.Connection, String, TransportRequest, TransportRequestOptions, TransportResponseHandler)}
      */
-    interface AsyncSender {
+    interface AsyncSender { // 第二次跑到TransportService.sendRequestInternal
         <T extends TransportResponse> void sendRequest(Transport.Connection connection, String action,
                                                        TransportRequest request, TransportRequestOptions options,
                                                        TransportResponseHandler<T> handler);

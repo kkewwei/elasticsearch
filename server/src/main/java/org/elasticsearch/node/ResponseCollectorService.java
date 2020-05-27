@@ -112,15 +112,15 @@ public final class ResponseCollectorService implements ClusterStateListener {
         // We store timestamps with nanosecond precision, however, the
         // formula specifies milliseconds, therefore we need to convert
         // the values so the times don't unduely weight the formula
-        private final double FACTOR = 1000000.0;
+        private final double FACTOR = 1000000.0;  // 都是以ms来统计的，我们就升级到ms
         private final int clientNum;
 
         private double cachedRank = 0;
 
         public final String nodeId;
-        public final int queueSize;
+        public final int queueSize;  // 平均的队列长度
         public final double responseTime;
-        public final double serviceTime;
+        public final double serviceTime;  // 一分钟可以服务的次数，服务速率
 
         public ComputedNodeStats(String nodeId, int clientNum, int queueSize, double responseTime, double serviceTime) {
             this.nodeId = nodeId;
@@ -155,8 +155,8 @@ public final class ResponseCollectorService implements ClusterStateListener {
         /**
          * Rank this copy of the data, according to the adaptive replica selection formula from the C3 paper
          * https://www.usenix.org/system/files/conference/nsdi15/nsdi15-paper-suresh.pdf
-         */
-        private double innerRank(long outstandingRequests) {
+         */     // outstandingRequests  正在并发请求的并发
+        private double innerRank(long outstandingRequests) {  // 分越高，表示表现性能越差
             // the concurrency compensation is defined as the number of
             // outstanding requests from the client to the node times the number
             // of clients in the system
@@ -168,14 +168,14 @@ public final class ResponseCollectorService implements ClusterStateListener {
 
             // EWMA of queue size
             double qBar = queueSize;
-            double qHatS = 1 + concurrencyCompensation + qBar;
+            double qHatS = 1 + concurrencyCompensation + qBar; // 预计的请求队列
 
             // EWMA of response time
             double rS = responseTime / FACTOR;
             // EWMA of service time
-            double muBarS = serviceTime / FACTOR;
-
-            // The final formula
+            double muBarS = serviceTime / FACTOR; // 服务速率
+             // 响应时间- 服务时间
+            // The final formula       这里立方是为了补偿队列大小，使得太小的单次服务时间和太大的单次服务时间之间的score尽量减少，不至于一分钟服务次数越大的分片，得分太低
             double rank = rS - (1.0 / muBarS) + (Math.pow(qHatS, queueAdjustmentFactor) / muBarS);
             return rank;
         }
@@ -209,7 +209,7 @@ public final class ResponseCollectorService implements ClusterStateListener {
     private static class NodeStatistics {
         final String nodeId;
         final ExponentiallyWeightedMovingAverage queueSize;
-        final ExponentiallyWeightedMovingAverage responseTime;
+        final ExponentiallyWeightedMovingAverage responseTime; // 从建立SearchExecutionStatsCollector获取当前时间开始， 到从target节点响应了，之间的时间间隔
         double serviceTime;
 
         NodeStatistics(String nodeId,

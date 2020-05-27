@@ -146,7 +146,7 @@ abstract class SearchProgressListener {
 
     protected final void notifyFinalReduce(List<SearchShard> shards, TotalHits totalHits, InternalAggregations aggs, int reducePhase) {
         try {
-            onFinalReduce(shards, totalHits, aggs, reducePhase);
+            onFinalReduce(shards, totalHits, aggs, reducePhase); // 什么都不做
         } catch (Exception e) {
             logger.warn(() -> new ParameterizedMessage("Failed to execute progress listener on reduce"), e);
         }

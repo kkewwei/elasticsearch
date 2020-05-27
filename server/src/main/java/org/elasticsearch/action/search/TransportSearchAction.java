@@ -209,7 +209,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             final Map<String, OriginalIndices> remoteClusterIndices = remoteClusterService.groupIndices(searchRequest.indicesOptions(),
                 searchRequest.indices(), idx -> indexNameExpressionResolver.hasIndexOrAlias(idx, clusterState));
             OriginalIndices localIndices = remoteClusterIndices.remove(RemoteClusterAware.LOCAL_CLUSTER_GROUP_KEY);
-            if (remoteClusterIndices.isEmpty()) {
+            if (remoteClusterIndices.isEmpty()) { // 除了本地集群之外，就没有别的集群了，会进来
                 executeLocalSearch(task, timeProvider, searchRequest, localIndices, clusterState, listener);
             } else {
                 if (shouldMinimizeRoundtrips(searchRequest)) {
@@ -460,9 +460,9 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         return indexNameExpressionResolver.concreteIndices(clusterState, indicesOptions,
             timeProvider.getAbsoluteStartMillis(), localIndices.indices());
     }
-
+    // 进来
     private void executeSearch(SearchTask task, SearchTimeProvider timeProvider, SearchRequest searchRequest,
-                               OriginalIndices localIndices, List<SearchShardIterator> remoteShardIterators,
+                               OriginalIndices localIndices, List<SearchShardIterator> remoteShardIterators, // 一般执行，没有远程indices，remoteShardIterators都会是空的
                                BiFunction<String, String, DiscoveryNode> remoteConnections, ClusterState clusterState,
                                Map<String, AliasFilter> remoteAliasMap, ActionListener<SearchResponse> listener,
                                SearchResponse.Clusters clusters) {
@@ -474,18 +474,18 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         final Index[] indices = resolveLocalIndices(localIndices, searchRequest.indicesOptions(), clusterState, timeProvider);
         Map<String, AliasFilter> aliasFilter = buildPerIndexAliasFilter(searchRequest, clusterState, indices, remoteAliasMap);
         Map<String, Set<String>> routingMap = indexNameExpressionResolver.resolveSearchRouting(clusterState, searchRequest.routing(),
-            searchRequest.indices());
+            searchRequest.indices()); // 为null
         routingMap = routingMap == null ? Collections.emptyMap() : Collections.unmodifiableMap(routingMap);
         String[] concreteIndices = new String[indices.length];
         for (int i = 0; i < indices.length; i++) {
             concreteIndices[i] = indices[i].getName();
         }
         Map<String, Long> nodeSearchCounts = searchTransportService.getPendingSearchRequests();
-        GroupShardsIterator<ShardIterator> localShardsIterator = clusterService.operationRouting().searchShards(clusterState,
+        GroupShardsIterator<ShardIterator> localShardsIterator = clusterService.operationRouting().searchShards(clusterState, // 每个shardIt都是一个
                 concreteIndices, routingMap, searchRequest.preference(), searchService.getResponseCollectorService(), nodeSearchCounts);
         GroupShardsIterator<SearchShardIterator> shardIterators = mergeShardsIterators(localShardsIterator, localIndices,
             searchRequest.getLocalClusterAlias(), remoteShardIterators);
-
+        // 检查一次查询的分片数是否超过了上限，默认没有限制
         failIfOverShardCountLimit(clusterService, shardIterators.size());
 
         Map<String, Float> concreteIndexBoosts = resolveIndexBoosts(searchRequest, clusterState);
@@ -495,7 +495,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             // if we only have one group, then we always want Q_T_F, no need for DFS, and no need to do THEN since we hit one shard
             searchRequest.searchType(QUERY_THEN_FETCH);
         }
-        if (searchRequest.allowPartialSearchResults() == null) {
+        if (searchRequest.allowPartialSearchResults() == null) { //是否允许部分查询结果
            // No user preference defined in search request - apply cluster service default
             searchRequest.allowPartialSearchResults(searchService.defaultAllowPartialSearchResults());
         }
@@ -510,7 +510,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             }
         }
 
-        final DiscoveryNodes nodes = clusterState.nodes();
+        final DiscoveryNodes nodes = clusterState.nodes();  // 当前集群的nodes
         BiFunction<String, String, Transport.Connection> connectionLookup = buildConnectionLookup(searchRequest.getLocalClusterAlias(),
             nodes::get, remoteConnections, searchTransportService::getConnection);
         boolean preFilterSearchShards = shouldPreFilterSearchShards(clusterState, searchRequest, indices, shardIterators.size());
@@ -519,16 +519,16 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
     }
 
     static BiFunction<String, String, Transport.Connection> buildConnectionLookup(String requestClusterAlias,
-                                                              Function<String, DiscoveryNode> localNodes,
+                                                              Function<String, DiscoveryNode> localNodes, //当前集群的nodes
                                                               BiFunction<String, String, DiscoveryNode> remoteNodes,
                                                               BiFunction<String, DiscoveryNode, Transport.Connection> nodeToConnection) {
         return (clusterAlias, nodeId) -> {
             final DiscoveryNode discoveryNode;
             final boolean remoteCluster;
-            if (clusterAlias == null || requestClusterAlias != null) {
+            if (clusterAlias == null || requestClusterAlias != null) {  // 当集群别名不存在的时候，就
                 assert requestClusterAlias == null || requestClusterAlias.equals(clusterAlias);
-                discoveryNode = localNodes.apply(nodeId);
-                remoteCluster = false;
+                discoveryNode = localNodes.apply(nodeId); // 当前集群所有的Nodes
+                remoteCluster = false;  //不remote
             } else {
                 discoveryNode = remoteNodes.apply(clusterAlias, nodeId);
                 remoteCluster = true;
@@ -536,7 +536,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             if (discoveryNode == null) {
                 throw new IllegalStateException("no node found for id: " + nodeId);
             }
-            return nodeToConnection.apply(remoteCluster ? clusterAlias : null, discoveryNode);
+            return nodeToConnection.apply(remoteCluster ? clusterAlias : null, discoveryNode);  // 会去跑到SearchTransportService.getConnection获取已经建立的连接
         };
     }
 
@@ -587,10 +587,10 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                                                         Map<String, Float> concreteIndexBoosts,
                                                         Map<String, Set<String>> indexRoutings,
                                                         ActionListener<SearchResponse> listener,
-                                                        boolean preFilter,
+                                                        boolean preFilter, // 为false
                                                         SearchResponse.Clusters clusters) {
         Executor executor = threadPool.executor(ThreadPool.Names.SEARCH);
-        if (preFilter) {
+        if (preFilter) { // 默认不用
             return new CanMatchPreFilterSearchPhase(logger, searchTransportService, connectionLookup,
                 aliasFilter, concreteIndexBoosts, indexRoutings, executor, searchRequest, listener, shardIterators,
                 timeProvider, clusterState, task, (iter) -> {
@@ -614,7 +614,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                     }
                 };
             }, clusters);
-        } else {
+        } else { //
             AbstractSearchAsyncAction<? extends SearchPhaseResult> searchAsyncAction;
             switch (searchRequest.searchType()) {
                 case DFS_QUERY_THEN_FETCH:

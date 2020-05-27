@@ -315,7 +315,7 @@ public class MetaDataCreateIndexService {
         // find templates, highest order are better matching
         final Boolean isHiddenFromRequest = IndexMetaData.INDEX_HIDDEN_SETTING.exists(request.settings()) ?
             IndexMetaData.INDEX_HIDDEN_SETTING.get(request.settings()) : null;
-        final List<IndexTemplateMetaData> templates = sourceMetaData == null ?
+        final List<IndexTemplateMetaData> templates = sourceMetaData == null ?// 这里是找匹配的template
             Collections.unmodifiableList(MetaDataIndexTemplateService.findTemplates(currentState.metaData(),
                 request.index(),
                 isHiddenFromRequest)) :

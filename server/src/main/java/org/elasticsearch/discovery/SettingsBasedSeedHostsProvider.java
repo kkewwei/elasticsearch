@@ -50,7 +50,7 @@ public class SettingsBasedSeedHostsProvider implements SeedHostsProvider {
     public static final Setting<List<String>> DISCOVERY_SEED_HOSTS_SETTING =
         Setting.listSetting("discovery.seed_hosts", emptyList(), Function.identity(), Property.NodeScope);
 
-    private final List<String> configuredHosts;
+    private final List<String> configuredHosts; // 配置的discovery.seed_hosts 里面的master节点放进来了
 
     public SettingsBasedSeedHostsProvider(Settings settings, TransportService transportService) {
         if (LEGACY_DISCOVERY_ZEN_PING_UNICAST_HOSTS_SETTING.exists(settings)) {
@@ -73,6 +73,6 @@ public class SettingsBasedSeedHostsProvider implements SeedHostsProvider {
 
     @Override
     public List<TransportAddress> getSeedAddresses(HostsResolver hostsResolver) {
-        return hostsResolver.resolveHosts(configuredHosts);
+        return hostsResolver.resolveHosts(configuredHosts); // 获取配置的master节点
     }
 }

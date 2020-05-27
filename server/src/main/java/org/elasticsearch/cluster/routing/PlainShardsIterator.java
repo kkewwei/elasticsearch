@@ -51,11 +51,11 @@ public class PlainShardsIterator implements ShardsIterator {
     }
 
     @Override
-    public ShardRouting nextOrNull() {
+    public ShardRouting nextOrNull() { // 一个PlainShardsIterator就是一个shardId内部
         if (index == shards.size()) {
             return null;
         } else {
-            return shards.get(index++);
+            return shards.get(index++); // shards = RotatedList
         }
     }
 

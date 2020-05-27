@@ -41,7 +41,7 @@ public class HttpHandlingSettings {
     private final int maxInitialLineLength;
     private final boolean resetCookies;
     private final boolean compression;
-    private final int compressionLevel;
+    private final int compressionLevel; // level=3
     private final boolean detailedErrorsEnabled;
     private final int pipeliningMaxEvents;
     private final long readTimeoutMillis;

@@ -28,27 +28,27 @@ public class TcpHeader {
 
     public static final Version VERSION_WITH_HEADER_SIZE = Version.V_7_6_0;
 
-    public static final int MARKER_BYTES_SIZE = 2;
+    public static final int MARKER_BYTES_SIZE = 2; // marker_bytes_size
 
-    public static final int MESSAGE_LENGTH_SIZE = 4;
+    public static final int MESSAGE_LENGTH_SIZE = 4;  // message_length_size
 
-    public static final int REQUEST_ID_SIZE = 8;
+    public static final int REQUEST_ID_SIZE = 8;   // request_id_size
 
-    public static final int STATUS_SIZE = 1;
+    public static final int STATUS_SIZE = 1;  // status_size
 
-    public static final int VERSION_ID_SIZE = 4;
-
-    public static final int VARIABLE_HEADER_SIZE = 4;
-
+    public static final int VERSION_ID_SIZE = 4; // version_id_size
+   // es7.6开始增加的一个字段
+    public static final int VARIABLE_HEADER_SIZE = 4; // variable_header_size
+    //在es7.6之前的header： es + length + request_id + status + version
     private static final int PRE_76_HEADER_SIZE = MARKER_BYTES_SIZE + MESSAGE_LENGTH_SIZE + REQUEST_ID_SIZE + STATUS_SIZE + VERSION_ID_SIZE;
-
+    //在es7.6之后的header： es + length + request_id + status + version
     private static final int HEADER_SIZE = PRE_76_HEADER_SIZE + VARIABLE_HEADER_SIZE;
 
     public static int headerSize(Version version) {
         if (version.onOrAfter(VERSION_WITH_HEADER_SIZE)) {
             return HEADER_SIZE;
         } else {
-            return PRE_76_HEADER_SIZE;
+            return PRE_76_HEADER_SIZE; // 根据支持的最小版本来决定header头
         }
     }
 

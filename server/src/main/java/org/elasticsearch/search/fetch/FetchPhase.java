@@ -150,7 +150,7 @@ public class FetchPhase implements SearchPhase {
                     throw new TaskCancelledException("cancelled");
                 }
                 int docId = context.docIdsToLoad()[context.docIdsToLoadFrom() + index];
-                int readerIndex = ReaderUtil.subIndex(docId, context.searcher().getIndexReader().leaves());
+                int readerIndex = ReaderUtil.subIndex(docId, context.searcher().getIndexReader().leaves());// 查找这个docId在哪个文件上
                 LeafReaderContext subReaderContext = context.searcher().getIndexReader().leaves().get(readerIndex);
                 int subDocId = docId - subReaderContext.docBase;
 
@@ -159,7 +159,7 @@ public class FetchPhase implements SearchPhase {
                 if (rootDocId != -1) {
                     searchHit = createNestedSearchHit(context, docId, subDocId, rootDocId,
                         storedToRequestedFields, subReaderContext);
-                } else {
+                } else {// 加载sourceu部分
                     searchHit = createSearchHit(context, fieldsVisitor, docId, subDocId,
                         storedToRequestedFields, subReaderContext);
                 }
@@ -211,7 +211,7 @@ public class FetchPhase implements SearchPhase {
         if (fieldsVisitor == null) {
             return new SearchHit(docId, null, typeText, null);
         }
-
+       // get source部分
         Map<String, DocumentField> searchFields = getSearchFields(context, fieldsVisitor, subDocId,
             storedToRequestedFields, subReaderContext);
 
@@ -230,7 +230,7 @@ public class FetchPhase implements SearchPhase {
                                                        int subDocId,
                                                        Map<String, Set<String>> storedToRequestedFields,
                                                        LeafReaderContext subReaderContext) {
-        loadStoredFields(context.shardTarget(), subReaderContext, fieldsVisitor, subDocId);
+        loadStoredFields(context.shardTarget(), subReaderContext, fieldsVisitor, subDocId);// get source部分
         fieldsVisitor.postProcess(context.mapperService());
 
         if (fieldsVisitor.fields().isEmpty()) {
@@ -423,7 +423,7 @@ public class FetchPhase implements SearchPhase {
     private void loadStoredFields(SearchShardTarget shardTarget, LeafReaderContext readerContext, FieldsVisitor fieldVisitor, int docId) {
         fieldVisitor.reset();
         try {
-            readerContext.reader().document(docId, fieldVisitor);
+            readerContext.reader().document(docId, fieldVisitor);// get source部分
         } catch (IOException e) {
             throw new FetchPhaseExecutionException(shardTarget, "Failed to fetch doc id [" + docId + "]", e);
         }

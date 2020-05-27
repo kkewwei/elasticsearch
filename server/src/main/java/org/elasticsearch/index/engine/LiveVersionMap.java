@@ -190,7 +190,7 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
 
     // All deletes also go here, and delete "tombstones" are retained after refresh:
     private final Map<BytesRef, DeleteVersionValue> tombstones = ConcurrentCollections.newConcurrentMapWithAggressiveConcurrency();
-
+    // 干嘛的
     private volatile Maps maps = new Maps();
     // we maintain a second map that only receives the updates that we skip on the actual map (unsafe ops)
     // this map is only maintained if assertions are enabled

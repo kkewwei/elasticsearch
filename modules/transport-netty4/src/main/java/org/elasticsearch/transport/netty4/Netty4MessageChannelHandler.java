@@ -59,7 +59,7 @@ final class Netty4MessageChannelHandler extends ChannelDuplexHandler {
         try {
             Channel channel = ctx.channel();
             Attribute<Netty4TcpChannel> channelAttribute = channel.attr(Netty4Transport.CHANNEL_KEY);
-            transport.inboundMessage(channelAttribute.get(), Netty4Utils.toBytesReference(buffer));
+            transport.inboundMessage(channelAttribute.get(), Netty4Utils.toBytesReference(buffer));// 跑到TcpTransport中了
         } finally {
             buffer.release();
         }

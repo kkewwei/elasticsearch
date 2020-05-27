@@ -40,7 +40,7 @@ final class Netty4SizeHeaderFrameDecoder extends ByteToMessageDecoder {
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         try {
             while (in.readableBytes() >= HEADER_SIZE) {
-                int messageLength = TcpTransport.readMessageLength(Netty4Utils.toBytesReference(in));
+                int messageLength = TcpTransport.readMessageLength(Netty4Utils.toBytesReference(in)); // 这里会读取ES和message.length
                 if (messageLength == -1) {
                     break;
                 } else {

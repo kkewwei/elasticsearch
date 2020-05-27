@@ -48,7 +48,7 @@ import static org.elasticsearch.common.Booleans.parseBoolean;
 
 public class OperationRouting {
 
-    public static final Setting<Boolean> USE_ADAPTIVE_REPLICA_SELECTION_SETTING =
+    public static final Setting<Boolean> USE_ADAPTIVE_REPLICA_SELECTION_SETTING = // 自适应选择分片，是否打开，若关闭后循环选择shardId每个副本分片
             Setting.boolSetting("cluster.routing.use_adaptive_replica_selection", true,
                     Setting.Property.Dynamic, Setting.Property.NodeScope);
 
@@ -127,9 +127,9 @@ public class OperationRouting {
                                                            @Nullable String preference,
                                                            @Nullable ResponseCollectorService collectorService,
                                                            @Nullable Map<String, Long> nodeCounts) {
-        final Set<IndexShardRoutingTable> shards = computeTargetedShards(clusterState, concreteIndices, routing);
+        final Set<IndexShardRoutingTable> shards = computeTargetedShards(clusterState, concreteIndices, routing); // 对象是shardId
         final Set<ShardIterator> set = new HashSet<>(shards.size());
-        for (IndexShardRoutingTable shard : shards) {
+        for (IndexShardRoutingTable shard : shards) { // 针对每个shardID
             ShardIterator iterator = preferenceActiveShardIterator(shard,
                     clusterState.nodes().getLocalNodeId(), clusterState.nodes(), preference, collectorService, nodeCounts);
             if (iterator != null) {
@@ -140,11 +140,11 @@ public class OperationRouting {
     }
 
     private static final Map<String, Set<String>> EMPTY_ROUTING = Collections.emptyMap();
-
+    // 获取需要查询的索引在哪些分片上
     private Set<IndexShardRoutingTable> computeTargetedShards(ClusterState clusterState, String[] concreteIndices,
                                                               @Nullable Map<String, Set<String>> routing) {
         routing = routing == null ? EMPTY_ROUTING : routing; // just use an empty map
-        final Set<IndexShardRoutingTable> set = new HashSet<>();
+        final Set<IndexShardRoutingTable> set = new HashSet<>(); // 存放的的是每个索引对应的
         // we use set here and not list since we might get duplicates
         for (String index : concreteIndices) {
             final IndexRoutingTable indexRouting = indexRoutingTable(clusterState, index);
@@ -157,9 +157,9 @@ public class OperationRouting {
                         set.add(RoutingTable.shardRoutingTable(indexRouting, calculateScaledShardId(indexMetaData, r, partitionOffset)));
                     }
                 }
-            } else {
+            } else {  // 一般都会跑到这里
                 for (IndexShardRoutingTable indexShard : indexRouting) {
-                    set.add(indexShard);
+                    set.add(indexShard); // 里面放的一个对象是一个shardId
                 }
             }
         }
@@ -170,7 +170,7 @@ public class OperationRouting {
                                                         DiscoveryNodes nodes, @Nullable String preference,
                                                         @Nullable ResponseCollectorService collectorService,
                                                         @Nullable Map<String, Long> nodeCounts) {
-        if (preference == null || preference.isEmpty()) {
+        if (preference == null || preference.isEmpty()) { // 一般都来到这里了
             return shardRoutings(indexShard, nodes, collectorService, nodeCounts);
         }
         if (preference.charAt(0) == '_') {
@@ -244,7 +244,7 @@ public class OperationRouting {
     private ShardIterator shardRoutings(IndexShardRoutingTable indexShard, DiscoveryNodes nodes,
             @Nullable ResponseCollectorService collectorService, @Nullable Map<String, Long> nodeCounts) {
         if (awarenessAttributes.isEmpty()) {
-            if (useAdaptiveReplicaSelection) {
+            if (useAdaptiveReplicaSelection) {// 自适应选择分片，默认为true
                 return indexShard.activeInitializingShardsRankedIt(collectorService, nodeCounts);
             } else {
                 return indexShard.activeInitializingShardsRandomIt();

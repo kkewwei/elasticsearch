@@ -43,9 +43,9 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
 
     private static final Logger logger = LogManager.getLogger(QueueResizingEsThreadPoolExecutor.class);
     // The amount the queue size is adjusted by for each calcuation
-    private static final int QUEUE_ADJUSTMENT_AMOUNT = 50;
+    private static final int QUEUE_ADJUSTMENT_AMOUNT = 50; // 一次调整的范围
 
-    private final Function<Runnable, WrappedRunnable> runnableWrapper;
+    private final Function<Runnable, WrappedRunnable> runnableWrapper; // 在EsExecutors.newAutoQueueFixed中， 传递进来了TimedRunnable::new， 那么所有传递的run都会被包装下
     private final ResizableBlockingQueue<Runnable> workQueue;
     private final int tasksPerFrame;
     private final int minQueueSize;
@@ -108,7 +108,7 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
         // total runtime, rather than a fixed interval.
 
         // λ = total tasks divided by measurement time
-        return (double) totalNumberOfTasks / totalFrameTaskNanos;
+        return (double) totalNumberOfTasks / totalFrameTaskNanos;  // 某个时间内，多少个任务被检测到
     }
 
     /**
@@ -117,10 +117,10 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
      * @param lambda the arrival rate of tasks in nanoseconds
      * @param targetedResponseTimeNanos nanoseconds for the average targeted response rate of requests
      * @return the optimal queue size for the give task rate and targeted response time
-     */
+     */  // 对于给定的速率及响应时间，给出最合适的队列长度
     static int calculateL(final double lambda, final long targetedResponseTimeNanos) {
         assert targetedResponseTimeNanos > 0 : "cannot calculate for instantaneous requests";
-        // L = λ * W
+        // L = λ * W  任务队列的容量设置
         return Math.toIntExact((long)(lambda * targetedResponseTimeNanos));
     }
 
@@ -137,21 +137,21 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
     public int getCurrentQueueSize() {
         return workQueue.size();
     }
-
+    // 每当线程池中的线程执行完成后，就回去统计一次
     @Override
     protected void afterExecute(Runnable r, Throwable t) {
-        super.afterExecute(r, t);
+        super.afterExecute(r, t);//重写 afterExecute 方法时,要先调用 super.afterExecute
         // A task has been completed, it has left the building. We should now be able to get the
         // total time as a combination of the time in the queue and time spent running the task. We
         // only want runnables that did not throw errors though, because they could be fast-failures
         // that throw off our timings, so only check when t is null.
-        assert super.unwrap(r) instanceof TimedRunnable : "expected only TimedRunnables in queue";
+        assert super.unwrap(r) instanceof TimedRunnable : "expected only TimedRunnables in queue";//只统计 类型为TimedRunnable任务 的执行时间和任务个数
         final TimedRunnable timedRunnable = (TimedRunnable) super.unwrap(r);
-        final long taskNanos = timedRunnable.getTotalNanos();
+        final long taskNanos = timedRunnable.getTotalNanos(); //单个任务的耗时(排队时间加上执行时间)
         final boolean failedOrRejected = timedRunnable.getFailedOrRejected();
-        final long totalNanos = totalTaskNanos.addAndGet(taskNanos);
+        final long totalNanos = totalTaskNanos.addAndGet(taskNanos);//所有任务的总耗时(每个任务的耗时累加求和)
 
-        final long taskExecutionNanos = timedRunnable.getTotalExecutionNanos();
+        final long taskExecutionNanos = timedRunnable.getTotalExecutionNanos(); //单个任务的执行时间(其实就是单个任务的耗时减去排队时间)
         assert taskExecutionNanos >= 0 || (failedOrRejected && taskExecutionNanos == -1) :
             "expected task to always take longer than 0 nanoseconds or have '-1' failure code, got: " + taskExecutionNanos +
                 ", failedOrRejected: " + failedOrRejected;
@@ -160,9 +160,9 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
             executionEWMA.addValue(taskExecutionNanos);
         }
 
-        if (taskCount.incrementAndGet() == this.tasksPerFrame) {
+        if (taskCount.incrementAndGet() == this.tasksPerFrame) { //tasksPerFrame默认为2000, 线程池每执行完一批任务(tasksPerFrame个)就进行一次任务队列长度的调整。
             final long endTimeNs = System.nanoTime();
-            final long totalRuntime = endTimeNs - this.startNs;
+            final long totalRuntime = endTimeNs - this.startNs; // 当前这批花了多少时间
             // Reset the start time for all tasks. At first glance this appears to need to be
             // volatile, since we are reading from a different thread when it is set, but it
             // is protected by the taskCount memory barrier.
@@ -171,8 +171,8 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
 
             // Calculate the new desired queue size
             try {
-                final double lambda = calculateLambda(tasksPerFrame, Math.max(totalNanos, 1L));
-                final int desiredQueueSize = calculateL(lambda, targetedResponseTimeNanos);
+                final double lambda = calculateLambda(tasksPerFrame, Math.max(totalNanos, 1L)); // 入队速度
+                final int desiredQueueSize = calculateL(lambda, targetedResponseTimeNanos); // 目标队列长度
                 final int oldCapacity = workQueue.capacity();
 
                 if (logger.isDebugEnabled()) {
@@ -192,7 +192,7 @@ public final class QueueResizingEsThreadPoolExecutor extends EsThreadPoolExecuto
                 // Adjust the queue size towards the desired capacity using an adjust of
                 // QUEUE_ADJUSTMENT_AMOUNT (either up or down), keeping in mind the min and max
                 // values the queue size can have.
-                final int newCapacity =
+                final int newCapacity =// 将任务队列的容量从 oldCapacity 调整到 newCapacity,并不是直接将任务队列的长度调整到desiredQueueSize
                         workQueue.adjustCapacity(desiredQueueSize, QUEUE_ADJUSTMENT_AMOUNT, minQueueSize, maxQueueSize);
                 if (oldCapacity != newCapacity && logger.isDebugEnabled()) {
                     logger.debug("adjusted [{}] queue size by [{}], old capacity: [{}], new capacity: [{}]", getName(),
