@@ -37,7 +37,7 @@ import static org.elasticsearch.common.recycler.Recyclers.dequeFactory;
 import static org.elasticsearch.common.recycler.Recyclers.none;
 
 /** A recycler of fixed-size pages. */
-public class PageCacheRecycler {
+public class PageCacheRecycler { // 回收固定页数的回收器
 
     public static final Setting<Type> TYPE_SETTING =
         new Setting<>("cache.recycler.page.type", Type.CONCURRENT.name(), Type::parse, Property.NodeScope);

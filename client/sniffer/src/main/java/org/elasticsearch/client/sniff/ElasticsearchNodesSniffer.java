@@ -103,17 +103,17 @@ public final class ElasticsearchNodesSniffer implements NodesSniffer {
     @Override
     public List<Node> sniff() throws IOException {
         Response response = restClient.performRequest(request);
-        return readHosts(response.getEntity(), scheme, jsonFactory);
+        return readHosts(response.getEntity(), scheme, jsonFactory); // 内部也使用的lowlevel 方式
     }
 
     static List<Node> readHosts(HttpEntity entity, Scheme scheme, JsonFactory jsonFactory) throws IOException {
         try (InputStream inputStream = entity.getContent()) {
             JsonParser parser = jsonFactory.createParser(inputStream);
-            if (parser.nextToken() != JsonToken.START_OBJECT) {
+            if (parser.nextToken() != JsonToken.START_OBJECT) { // 说的如何读取
                 throw new IOException("expected data to start with an object");
             }
             List<Node> nodes = new ArrayList<>();
-            while (parser.nextToken() != JsonToken.END_OBJECT) {
+            while (parser.nextToken() != JsonToken.END_OBJECT) { // 说的如何读取
                 if (parser.getCurrentToken() == JsonToken.START_OBJECT) {
                     if ("nodes".equals(parser.getCurrentName())) {
                         while (parser.nextToken() != JsonToken.END_OBJECT) {

@@ -439,7 +439,7 @@ public class RangeQueryBuilder extends AbstractQueryBuilder<RangeQueryBuilder> i
                 return MappedFieldType.Relation.INTERSECTS;
             }
 
-            DateMathParser dateMathParser = getForceDateParser();
+            DateMathParser dateMathParser = getForceDateParser();//NumberFieldType, 若format为空，就dateMathParser为空
             return fieldType.isFieldWithinQuery(shardContext.getIndexReader(), from, to, includeLower,
                     includeUpper, timeZone, dateMathParser, queryRewriteContext);
         }
@@ -447,7 +447,7 @@ public class RangeQueryBuilder extends AbstractQueryBuilder<RangeQueryBuilder> i
         // Not on the shard, we have no way to know what the relation is.
         return MappedFieldType.Relation.INTERSECTS;
     }
-
+   // 将会发生两次改写，第一次在协调节点改写，第二次在真正执行的节点改写的, 只有data range的才会修改， 普通数字range不会修改
     @Override
     protected QueryBuilder doRewrite(QueryRewriteContext queryRewriteContext) throws IOException {
         final MappedFieldType.Relation relation = getRelation(queryRewriteContext);

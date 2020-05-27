@@ -236,7 +236,7 @@ public class MetadataMappingService {
                                 mapperService.merge(indexMetadata, MergeReason.MAPPING_RECOVERY);
                             }
                         }
-                        currentState = applyRequest(currentState, request, indexMapperServices);
+                        currentState = applyRequest(currentState, request, indexMapperServices); // 真正合并的地方
                         builder.success(request);
                     } catch (Exception e) {
                         builder.failure(request, e);

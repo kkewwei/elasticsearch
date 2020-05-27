@@ -104,7 +104,7 @@ public interface ActionListener<Response> {
      * @param <T> Type of the delegating listener's response
      * @param <R> Type of the wrapped listeners
      * @return Delegating listener
-     */
+     */ // 接受异常回调的地方
     static <T, R> ActionListener<T> delegateFailure(ActionListener<R> delegate, BiConsumer<ActionListener<R>, T> bc) {
         return new ActionListener<T>() {
 
@@ -318,7 +318,7 @@ public interface ActionListener<Response> {
      *
      * If the supplier fails, the listener's onFailure handler will be called.
      * It is the responsibility of {@code delegate} to handle its own exceptions inside `onResponse` and `onFailure`.
-     */
+     */ //
     static <Response> void completeWith(ActionListener<Response> listener, CheckedSupplier<Response, ? extends Exception> supplier) {
         Response response;
         try {

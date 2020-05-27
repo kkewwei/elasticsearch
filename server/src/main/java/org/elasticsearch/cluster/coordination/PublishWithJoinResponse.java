@@ -31,7 +31,7 @@ import java.util.Optional;
  */
 public class PublishWithJoinResponse extends TransportResponse {
     private final PublishResponse publishResponse;
-    private final Optional<Join> optionalJoin;
+    private final Optional<Join> optionalJoin; // 若为空，代表master并没有获取这个节点的认可，没有获得这个节点的选票。
 
     public PublishWithJoinResponse(PublishResponse publishResponse, Optional<Join> optionalJoin) {
         this.publishResponse = publishResponse;

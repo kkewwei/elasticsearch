@@ -997,7 +997,7 @@ public class RoutingNodes implements Iterable<RoutingNode> {
          * Drains all unassigned shards and returns it.
          * This method will not drain ignored shards.
          */
-        public ShardRouting[] drain() {
+        public ShardRouting[] drain() { // 将unassigned给排空，放在mutableShardRoutings里面
             nodes.ensureMutable();
             ShardRouting[] mutableShardRoutings = unassigned.toArray(new ShardRouting[unassigned.size()]);
             unassigned.clear();

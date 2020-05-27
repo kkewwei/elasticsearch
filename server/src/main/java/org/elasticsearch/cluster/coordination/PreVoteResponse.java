@@ -25,7 +25,7 @@ import org.elasticsearch.transport.TransportResponse;
 
 import java.io.IOException;
 import java.util.Objects;
-
+// coordinator预投票时，收到别人恢复
 public class PreVoteResponse extends TransportResponse {
     private final long currentTerm;
     private final long lastAcceptedTerm;

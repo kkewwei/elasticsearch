@@ -173,7 +173,7 @@ public class IndexNameExpressionResolver {
         // option. At some point we should change this, because there shouldn't be a reason why whether a single index
         // or multiple indices are specified yield different behaviour.
         final boolean failNoIndices = indexExpressions.length == 1 ? !options.allowNoIndices() : !options.ignoreUnavailable();
-        List<String> expressions = Arrays.asList(indexExpressions);
+        List<String> expressions = Arrays.asList(indexExpressions); // 传递进来的索引
         for (ExpressionResolver expressionResolver : expressionResolvers) {
             expressions = expressionResolver.resolve(context, expressions);
         }

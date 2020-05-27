@@ -108,7 +108,7 @@ public final class NetworkService {
                 }
             }
             // we know it's not here. get the defaults
-            bindHosts = new String[] {"_local_"};
+            bindHosts = new String[] {"_local_"}; // 跑到这里
         }
 
         InetAddress addresses[] = resolveInetAddresses(bindHosts);
@@ -215,7 +215,7 @@ public final class NetworkService {
             }
             switch (host) {
                 case "local":
-                    return NetworkUtils.getLoopbackAddresses();
+                    return NetworkUtils.getLoopbackAddresses(); //
                 case "local:ipv4":
                     return NetworkUtils.filterIPV4(NetworkUtils.getLoopbackAddresses());
                 case "local:ipv6":

@@ -50,7 +50,7 @@ public class SecurityRestFilter implements RestHandler {
 
     @Override
     public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
-        if (licenseState.isSecurityEnabled() && request.method() != Method.OPTIONS) {
+        if (licenseState.isSecurityEnabled() && request.method() != Method.OPTIONS) {// 是否是需要授权的
             // CORS - allow for preflight unauthenticated OPTIONS request
             if (extractClientCertificate) {
                 HttpChannel httpChannel = request.getHttpChannel();
@@ -75,7 +75,7 @@ public class SecurityRestFilter implements RestHandler {
                         },
                         e -> handleException("Secondary authentication", request, channel, e)));
                 }, e -> handleException("Authentication", request, channel, e)));
-        } else {
+        } else { // 不需要授权
             restHandler.handleRequest(request, channel, client);
         }
     }

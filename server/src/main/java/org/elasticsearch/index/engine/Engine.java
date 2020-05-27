@@ -117,7 +117,7 @@ public abstract class Engine implements Closeable {
     protected final String allocationId;
     protected final Logger logger;
     protected final EngineConfig engineConfig;
-    protected final Store store;
+    protected final Store store; //它也是个累加器
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final CountDownLatch closedLatch = new CountDownLatch(1);
     protected final EventListener eventListener;
@@ -637,16 +637,16 @@ public abstract class Engine implements Closeable {
         /* Acquire order here is store -> manager since we need
          * to make sure that the store is not closed before
          * the searcher is acquired. */
-        if (store.tryIncRef() == false) {
+        if (store.tryIncRef() == false) { //再次引用+1
             throw new AlreadyClosedException(shardId + " store is closed", failedEngine.get());
         }
-        Releasable releasable = store::decRef;
+        Releasable releasable = store::decRef;// 就是可以执行的一个函数
         try {
             assert assertSearcherIsWarmedUp(source, scope);
             ReferenceManager<ElasticsearchDirectoryReader> referenceManager = getReferenceManager(scope);
-            final ElasticsearchDirectoryReader acquire = referenceManager.acquire();
+            final ElasticsearchDirectoryReader acquire = referenceManager.acquire(); // 查询时
             AtomicBoolean released = new AtomicBoolean(false);
-            Searcher engineSearcher = new Searcher(source, acquire,
+            Searcher engineSearcher = new Searcher(source, acquire, // 产生的一个新Searcher
                 engineConfig.getSimilarity(), engineConfig.getQueryCache(), engineConfig.getQueryCachingPolicy(),
                 () -> {
                 if (released.compareAndSet(false, true)) {
@@ -681,9 +681,9 @@ public abstract class Engine implements Closeable {
     boolean assertSearcherIsWarmedUp(String source, SearcherScope scope) {
         return true;
     }
-
+    //在InternalEngine中有externalReaderManager和internalReaderManager两类Manager
     public enum SearcherScope {
-        EXTERNAL, INTERNAL
+        EXTERNAL, INTERNAL //external、internal
     }
 
     /**
@@ -806,8 +806,8 @@ public abstract class Engine implements Closeable {
 
     protected void fillSegmentStats(SegmentReader segmentReader, boolean includeSegmentFileSizes, SegmentsStats stats) {
         stats.add(1, segmentReader.ramBytesUsed());
-        stats.addTermsMemoryInBytes(guardedRamBytesUsed(segmentReader.getPostingsReader()));
-        stats.addStoredFieldsMemoryInBytes(guardedRamBytesUsed(segmentReader.getFieldsReader()));
+        stats.addTermsMemoryInBytes(guardedRamBytesUsed(segmentReader.getPostingsReader())); // 读取的doc
+        stats.addStoredFieldsMemoryInBytes(guardedRamBytesUsed(segmentReader.getFieldsReader())); // CompressingStoredFieldsReader
         stats.addTermVectorsMemoryInBytes(guardedRamBytesUsed(segmentReader.getTermVectorsReader()));
         stats.addNormsMemoryInBytes(guardedRamBytesUsed(segmentReader.getNormsReader()));
         stats.addPointsMemoryInBytes(guardedRamBytesUsed(segmentReader.getPointsReader()));
@@ -981,9 +981,9 @@ public abstract class Engine implements Closeable {
      * The list of segments in the engine.
      */
     public abstract List<Segment> segments(boolean verbose);
-
+    // 周期性refresh
     public boolean refreshNeeded() {
-        if (store.tryIncRef()) {
+        if (store.tryIncRef()) { // Store引用+1
             /*
               we need to inc the store here since we acquire a searcher and that might keep a file open on the
               store. this violates the assumption that all files are closed when
@@ -1030,7 +1030,7 @@ public abstract class Engine implements Closeable {
      * Checks if this engine should be flushed periodically.
      * This check is mainly based on the uncommitted translog size and the translog flush threshold setting.
      */
-    public abstract boolean shouldPeriodicallyFlush();
+    public abstract boolean shouldPeriodicallyFlush(); // 同步flush时，根据translog size：512MB检查，
 
     /**
      * Flushes the state of the engine including the transaction log, clearing memory.
@@ -1198,14 +1198,14 @@ public abstract class Engine implements Closeable {
 
     public static final class Searcher extends IndexSearcher implements Releasable {
         private final String source;
-        private final Closeable onClose;
-
+        private final Closeable onClose; // 关闭的时候做啥
+        // reader是ElasticsearchDirectoryReader
         public Searcher(String source, IndexReader reader,
                         Similarity similarity, QueryCache queryCache, QueryCachingPolicy queryCachingPolicy,
                         Closeable onClose) {
             super(reader);
             setSimilarity(similarity);
-            setQueryCache(queryCache);
+            setQueryCache(queryCache); // 改变了默认的QueryCache
             setQueryCachingPolicy(queryCachingPolicy);
             this.source = source;
             this.onClose = onClose;
@@ -1605,7 +1605,7 @@ public abstract class Engine implements Closeable {
             this.ifPrimaryTerm = primaryTerm;
             return this;
         }
-        
+
         public long getIfPrimaryTerm() {
             return ifPrimaryTerm;
         }

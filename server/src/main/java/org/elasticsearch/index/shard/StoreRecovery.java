@@ -95,7 +95,7 @@ final class StoreRecovery {
                 "expected store recovery type but was: " + recoveryType;
             ActionListener.completeWith(recoveryListener(indexShard, listener), () -> {
                 logger.debug("starting recovery from store ...");
-                internalRecoverFromStore(indexShard);
+                internalRecoverFromStore(indexShard);// 实际本地恢复，跑的这个函数。索引关闭时也会跑这里
                 return true;
             });
         } else {
@@ -371,7 +371,7 @@ final class StoreRecovery {
     private void internalRecoverFromStore(IndexShard indexShard) throws IndexShardRecoveryException {
         indexShard.preRecovery();
         final RecoveryState recoveryState = indexShard.recoveryState();
-        final boolean indexShouldExists = recoveryState.getRecoverySource().getType() != RecoverySource.Type.EMPTY_STORE;
+        final boolean indexShouldExists = recoveryState.getRecoverySource().getType() != RecoverySource.Type.EMPTY_STORE; // 本地恢复时为true
         indexShard.prepareForIndexRecovery();
         SegmentInfos si = null;
         final Store store = indexShard.store();
@@ -380,7 +380,7 @@ final class StoreRecovery {
             try {
                 store.failIfCorrupted();
                 try {
-                    si = store.readLastCommittedSegmentsInfo();
+                    si = store.readLastCommittedSegmentsInfo(); // 获取shard已经存的情况
                 } catch (Exception e) {
                     String files = "_unknown_";
                     try {
@@ -430,7 +430,7 @@ final class StoreRecovery {
                 store.associateIndexWithNewTranslog(translogUUID);
                 writeEmptyRetentionLeasesFile(indexShard);
             }
-            indexShard.openEngineAndRecoverFromTranslog();
+            indexShard.openEngineAndRecoverFromTranslog(); // 打开InternalEngine
             indexShard.getEngine().fillSeqNoGaps(indexShard.getPendingPrimaryTerm());
             indexShard.finalizeRecovery();
             indexShard.postRecovery("post recovery from shard_store");

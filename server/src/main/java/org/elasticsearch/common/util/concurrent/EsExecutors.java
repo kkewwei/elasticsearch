@@ -145,7 +145,7 @@ public class EsExecutors {
         return new QueueResizingEsThreadPoolExecutor(name, size, size, 0, TimeUnit.MILLISECONDS,
                 queue, minQueueSize, maxQueueSize, TimedRunnable::new, frameSize, targetedResponseTime, threadFactory,
                 new EsAbortPolicy(), contextHolder);
-    }
+    }  //
 
     /**
      * Checks if the runnable arose from asynchronous submission of a task to an executor. If an uncaught exception was thrown

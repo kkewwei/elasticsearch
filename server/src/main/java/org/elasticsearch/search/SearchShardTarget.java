@@ -33,7 +33,7 @@ import java.util.Objects;
 
 /**
  * The target that the search request was executed on.
- */
+ */   // 在协调节点上存货的
 public final class SearchShardTarget implements Writeable, Comparable<SearchShardTarget> {
 
     private final Text nodeId;

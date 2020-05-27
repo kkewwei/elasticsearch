@@ -104,7 +104,7 @@ public final class ConnectionProfile {
     /**
      * Builds a connection profile that is dedicated to a single channel type. Allows passing connection and
      * handshake timeouts and compression settings.
-     */
+     */    // 只创建一个管道的profile
     public static ConnectionProfile buildSingleChannelProfile(TransportRequestOptions.Type channelType, @Nullable TimeValue connectTimeout,
                                                               @Nullable TimeValue handshakeTimeout, @Nullable TimeValue pingInterval,
                                                               @Nullable Boolean compressionEnabled) {

@@ -138,7 +138,7 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
 
     private volatile String defaultMappingSource;
 
-    private volatile DocumentMapper mapper;
+    private volatile DocumentMapper mapper;// 是怎么赋值的
     private volatile DocumentMapper defaultMapper;
 
     private volatile FieldTypeLookup fieldTypes;
@@ -171,7 +171,7 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
         this.mapperRegistry = mapperRegistry;
         this.idFieldDataEnabled = idFieldDataEnabled;
 
-        if (INDEX_MAPPER_DYNAMIC_SETTING.exists(indexSettings.getSettings()) &&
+        if (INDEX_MAPPER_DYNAMIC_SETTING.exists(indexSettings.getSettings()) && // index.mapper.dynamic被关闭了
                 indexSettings.getIndexVersionCreated().onOrAfter(Version.V_7_0_0)) {
             throw new IllegalArgumentException("Setting " + INDEX_MAPPER_DYNAMIC_SETTING.getKey() + " was removed after version 6.0.0");
         }
@@ -729,7 +729,7 @@ public class MapperService extends AbstractIndexComponent implements Closeable {
      * to work against indices with a custom type name.
      */
     public String resolveDocumentType(String type) {
-        if (MapperService.SINGLE_MAPPING_NAME.equals(type)) {
+        if (MapperService.SINGLE_MAPPING_NAME.equals(type)) { // 若是默认type:_doc
             if (mapper != null) {
                 return mapper.type();
             }

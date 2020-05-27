@@ -242,7 +242,7 @@ class BulkPrimaryExecutionContext {
             new BulkItemResponse.Failure(getCurrentItem().index(), docWriteRequest.type(), docWriteRequest.id(), cause));
         markAsCompleted(executionResult);
     }
-
+    //
     /** the current operation has been executed on the primary with the specified result */
     public void markOperationAsExecuted(Engine.Result result) {
         assertInvariants(ItemProcessingState.TRANSLATED);
@@ -266,7 +266,7 @@ class BulkPrimaryExecutionContext {
                 executionResult = new BulkItemResponse(current.id(), current.request().opType(), response);
                 // set a blank ShardInfo so we can safely send it to the replicas. We won't use it in the real response though.
                 executionResult.getResponse().setShardInfo(new ReplicationResponse.ShardInfo());
-                locationToSync = TransportWriteAction.locationToSync(locationToSync, result.getTranslogLocation());
+                locationToSync = TransportWriteAction.locationToSync(locationToSync, result.getTranslogLocation()); // 换新的Translog buffer缓存地址
                 break;
             case FAILURE:
                 executionResult = new BulkItemResponse(current.id(), docWriteRequest.opType(),

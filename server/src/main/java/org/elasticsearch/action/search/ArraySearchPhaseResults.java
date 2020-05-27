@@ -26,12 +26,12 @@ import java.util.stream.Stream;
 
 /**
  * This class acts as a basic result collection that can be extended to do on-the-fly reduction or result processing
- */
+ */  // 需要要等全部分片响应后才返回
 class ArraySearchPhaseResults<Result extends SearchPhaseResult> extends SearchPhaseResults<Result> {
-    final AtomicArray<Result> results;
+    final AtomicArray<Result> results;  // 保存查询结果的地方
 
     ArraySearchPhaseResults(int size) {
-        super(size);
+        super(size); // 需要查询的分片个数
         this.results = new AtomicArray<>(size);
     }
 

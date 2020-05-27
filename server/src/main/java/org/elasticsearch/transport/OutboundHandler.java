@@ -46,7 +46,7 @@ final class OutboundHandler {
     private static final Logger logger = LogManager.getLogger(OutboundHandler.class);
 
     private final String nodeName;
-    private final Version version;
+    private final Version version;// 从Netty4Plugin.getTransports中获取的当前client版本号
     private final String[] features;
     private final StatsTracker statsTracker;
     private final ThreadPool threadPool;
@@ -56,7 +56,7 @@ final class OutboundHandler {
     OutboundHandler(String nodeName, Version version, String[] features, StatsTracker statsTracker, ThreadPool threadPool,
                     BigArrays bigArrays) {
         this.nodeName = nodeName;
-        this.version = version;
+        this.version = version;// 从Netty4Plugin.getTransports中获取的当前client版本号
         this.features = features;
         this.statsTracker = statsTracker;
         this.threadPool = threadPool;
@@ -80,12 +80,12 @@ final class OutboundHandler {
     void sendRequest(final DiscoveryNode node, final TcpChannel channel, final long requestId, final String action,
                      final TransportRequest request, final TransportRequestOptions options, final Version channelVersion,
                      final boolean compressRequest, final boolean isHandshake) throws IOException, TransportException {
-        Version version = Version.min(this.version, channelVersion);
+        Version version = Version.min(this.version, channelVersion); // // handshake时，channelVersion=当前client支持的最小版本（es7是es6.8）
         OutboundMessage.Request message = new OutboundMessage.Request(threadPool.getThreadContext(), features, request, version, action,
             requestId, isHandshake, compressRequest);
         ActionListener<Void> listener = ActionListener.wrap(() ->
             messageListener.onRequestSent(node, requestId, action, request, options));
-        sendMessage(channel, message, listener);
+        sendMessage(channel, message, listener); // 发送跑这里
     }
 
     /**
@@ -97,7 +97,7 @@ final class OutboundHandler {
     void sendResponse(final Version nodeVersion, final Set<String> features, final TcpChannel channel,
                       final long requestId, final String action, final TransportResponse response,
                       final boolean compress, final boolean isHandshake) throws IOException {
-        Version version = Version.min(this.version, nodeVersion);
+        Version version = Version.min(this.version, nodeVersion);  // response影响
         OutboundMessage.Response message = new OutboundMessage.Response(threadPool.getThreadContext(), features, response, version,
             requestId, isHandshake, compress);
         ActionListener<Void> listener = ActionListener.wrap(() -> messageListener.onResponseSent(requestId, action, response));
@@ -117,7 +117,7 @@ final class OutboundHandler {
         ActionListener<Void> listener = ActionListener.wrap(() -> messageListener.onResponseSent(requestId, action, error));
         sendMessage(channel, message, listener);
     }
-
+    // 发送跑这里
     private void sendMessage(TcpChannel channel, OutboundMessage networkMessage, ActionListener<Void> listener) throws IOException {
         MessageSerializer serializer = new MessageSerializer(networkMessage, bigArrays);
         SendContext sendContext = new SendContext(channel, serializer, listener, serializer);
@@ -125,7 +125,7 @@ final class OutboundHandler {
     }
 
     private void internalSend(TcpChannel channel, SendContext sendContext) throws IOException {
-        channel.getChannelStats().markAccessed(threadPool.relativeTimeInMillis());
+        channel.getChannelStats().markAccessed(threadPool.relativeTimeInMillis()); // 最近一次更新
         BytesReference reference = sendContext.get();
         try {
             channel.sendMessage(reference, sendContext);
@@ -159,7 +159,7 @@ final class OutboundHandler {
         @Override
         public BytesReference get() throws IOException {
             bytesStreamOutput = new ReleasableBytesStreamOutput(bigArrays);
-            return message.serialize(bytesStreamOutput);
+            return message.serialize(bytesStreamOutput); // 这里会对请求格式化：marker+request_id。
         }
 
         @Override
@@ -170,7 +170,7 @@ final class OutboundHandler {
 
     private class SendContext extends NotifyOnceListener<Void> implements CheckedSupplier<BytesReference, IOException> {
 
-        private final TcpChannel channel;
+        private final TcpChannel channel;// Netty4TcpChannel
         private final CheckedSupplier<BytesReference, IOException> messageSupplier;
         private final ActionListener<Void> listener;
         private final Releasable optionalReleasable;
@@ -183,16 +183,16 @@ final class OutboundHandler {
 
         private SendContext(TcpChannel channel, CheckedSupplier<BytesReference, IOException> messageSupplier,
                             ActionListener<Void> listener, Releasable optionalReleasable) {
-            this.channel = channel;
+            this.channel = channel;// Netty4TcpChannel
             this.messageSupplier = messageSupplier;
             this.listener = listener;
-            this.optionalReleasable = optionalReleasable;
+            this.optionalReleasable = optionalReleasable; //MessageSerializer
         }
 
         public BytesReference get() throws IOException {
             BytesReference message;
             try {
-                message = messageSupplier.get();
+                message = messageSupplier.get(); //这里会进行序列化
                 messageSize = message.length();
                 TransportLogger.logOutboundMessage(channel, message);
                 return message;

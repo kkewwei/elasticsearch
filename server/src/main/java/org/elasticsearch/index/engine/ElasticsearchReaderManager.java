@@ -51,7 +51,7 @@ class ElasticsearchReaderManager extends ReferenceManager<ElasticsearchDirectory
      */
     ElasticsearchReaderManager(ElasticsearchDirectoryReader reader,
                                BiConsumer<ElasticsearchDirectoryReader, ElasticsearchDirectoryReader> refreshListener) {
-        this.current = reader;
+        this.current = reader; // ElasticsearchDirectoryReader
         this.refreshListener = refreshListener;
         refreshListener.accept(current, null);
     }
@@ -61,10 +61,10 @@ class ElasticsearchReaderManager extends ReferenceManager<ElasticsearchDirectory
         reference.decRef();
     }
 
-    @Override
+    @Override // refresh时会进来
     protected ElasticsearchDirectoryReader refreshIfNeeded(ElasticsearchDirectoryReader referenceToRefresh) throws IOException {
-        final ElasticsearchDirectoryReader reader = (ElasticsearchDirectoryReader) DirectoryReader.openIfChanged(referenceToRefresh);
-        if (reader != null) {
+        final ElasticsearchDirectoryReader reader = (ElasticsearchDirectoryReader) DirectoryReader.openIfChanged(referenceToRefresh); // 会触发主动merge操作
+        if (reader != null) { // RamAccountingRefreshListener
             refreshListener.accept(reader, referenceToRefresh);
         }
         return reader;

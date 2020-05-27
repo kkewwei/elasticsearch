@@ -69,7 +69,7 @@ public abstract class InnerHitContextBuilder {
 
     public static void extractInnerHits(QueryBuilder query, Map<String, InnerHitContextBuilder> innerHitBuilders) {
         if (query instanceof AbstractQueryBuilder) {
-            ((AbstractQueryBuilder) query).extractInnerHitBuilders(innerHitBuilders);
+            ((AbstractQueryBuilder) query).extractInnerHitBuilders(innerHitBuilders); // 什么都不做
         } else {
             throw new IllegalStateException("provided query builder [" + query.getClass() +
                 "] class should inherit from AbstractQueryBuilder, but it doesn't");

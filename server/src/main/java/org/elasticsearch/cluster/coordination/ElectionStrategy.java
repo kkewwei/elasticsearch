@@ -47,7 +47,7 @@ public abstract class ElectionStrategy {
     public final boolean isElectionQuorum(DiscoveryNode localNode, long localCurrentTerm, long localAcceptedTerm, long localAcceptedVersion,
                                           VotingConfiguration lastCommittedConfiguration, VotingConfiguration lastAcceptedConfiguration,
                                           VoteCollection joinVotes) {
-        return joinVotes.isQuorum(lastCommittedConfiguration) &&
+        return joinVotes.isQuorum(lastCommittedConfiguration) && //  参与投票的节点joinVotes要大于上次持久化节点的一般
             joinVotes.isQuorum(lastAcceptedConfiguration) &&
             satisfiesAdditionalQuorumConstraints(localNode, localCurrentTerm, localAcceptedTerm, localAcceptedVersion,
                 lastCommittedConfiguration, lastAcceptedConfiguration, joinVotes);

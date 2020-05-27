@@ -60,7 +60,7 @@ public abstract class AbstractScopedSettings {
     private final Settings settings;
     private final List<SettingUpdater<?>> settingUpdaters = new CopyOnWriteArrayList<>();
     private final Map<String, Setting<?>> complexMatchers;
-    private final Map<String, Setting<?>> keySettings;
+    private final Map<String, Setting<?>> keySettings; // 这里面
     private final Map<Setting<?>, SettingUpgrader<?>> settingUpgraders;
     private final Setting.Property scope;
     private Settings lastSettingsApplied;

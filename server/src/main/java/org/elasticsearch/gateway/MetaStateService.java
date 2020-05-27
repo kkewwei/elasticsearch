@@ -70,7 +70,7 @@ public class MetaStateService {
      * @throws IOException if some IOException when loading files occurs or there is no metadata referenced by manifest file.
      */
     public Tuple<Manifest, Metadata> loadFullState() throws IOException {
-        final Manifest manifest = MANIFEST_FORMAT.loadLatestState(logger, namedXContentRegistry, nodeEnv.nodeDataPaths());
+        final Manifest manifest = MANIFEST_FORMAT.loadLatestState(logger, namedXContentRegistry, nodeEnv.nodeDataPaths()); // 先从mainFest-xx.st中找generationNumber
         if (manifest == null) {
             return loadFullStateBWC();
         }
@@ -78,7 +78,7 @@ public class MetaStateService {
         final Metadata.Builder metadataBuilder;
         if (manifest.isGlobalGenerationMissing()) {
             metadataBuilder = Metadata.builder();
-        } else {
+        } else {// 知道generationNumber是多少，再从global-xx.st中取出集群的MetaState
             final Metadata globalMetadata = METADATA_FORMAT.loadGeneration(logger, namedXContentRegistry, manifest.getGlobalGeneration(),
                     nodeEnv.nodeDataPaths());
             if (globalMetadata != null) {
@@ -229,7 +229,7 @@ public class MetaStateService {
         final Index index = indexMetadata.getIndex();
         logger.trace("[{}] writing state, reason [{}]", index, reason);
         try {
-            long generation = INDEX_METADATA_FORMAT.write(indexMetadata,
+            long generation = INDEX_METADATA_FORMAT.write(indexMetadata, // 就是向
                     nodeEnv.indexPaths(indexMetadata.getIndex()));
             logger.trace("[{}] state written", index);
             return generation;
@@ -247,7 +247,7 @@ public class MetaStateService {
     long writeGlobalState(String reason, Metadata metadata) throws WriteStateException {
         logger.trace("[_global] writing state, reason [{}]", reason);
         try {
-            long generation = METADATA_FORMAT.write(metadata, nodeEnv.nodeDataPaths());
+            long generation = METADATA_FORMAT.write(metadata, nodeEnv.nodeDataPaths()); // 旧的临时文件还没有被清理掉，是为了发生异常时时候能否恢复
             logger.trace("[_global] state written");
             return generation;
         } catch (WriteStateException ex) {

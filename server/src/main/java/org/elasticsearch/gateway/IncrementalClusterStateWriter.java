@@ -49,8 +49,8 @@ public class IncrementalClusterStateWriter {
     private final MetaStateService metaStateService;
 
     // We call updateClusterState on the (unique) cluster applier thread so there's no need to synchronize access to these fields.
-    private Manifest previousManifest;
-    private ClusterState previousClusterState;
+    private Manifest previousManifest;// 从全局mainest-xxx.st中读取数据
+    private ClusterState previousClusterState;// 主要从global-yyy.st中读取数据
     private final LongSupplier relativeTimeMillisSupplier;
     private boolean incrementalWrite;
 
@@ -100,10 +100,10 @@ public class IncrementalClusterStateWriter {
         final long startTimeMillis = relativeTimeMillisSupplier.getAsLong();
 
         final AtomicClusterStateWriter writer = new AtomicClusterStateWriter(metaStateService, previousManifest);
-        long globalStateGeneration = writeGlobalState(writer, newMetadata);
-        Map<Index, Long> indexGenerations = writeIndicesMetadata(writer, newState);
+        long globalStateGeneration = writeGlobalState(writer, newMetadata);// 向global中写入集群元数据
+        Map<Index, Long> indexGenerations = writeIndicesMetadata(writer, newState);// 向每个索引每个磁盘的路径中写入索引的元数据信息
         Manifest manifest = new Manifest(previousManifest.getCurrentTerm(), newState.version(), globalStateGeneration, indexGenerations);
-        writeManifest(writer, manifest);
+        writeManifest(writer, manifest); // 向Mainfest写入
         previousManifest = manifest;
         previousClusterState = newState;
 
@@ -124,7 +124,7 @@ public class IncrementalClusterStateWriter {
             writer.writeManifestAndCleanup("changed", manifest);
         }
     }
-
+    // 是想每个磁盘下，每个索引路径/data/indices/8l11ps2zRwGmQ0vW8aDTSA/_state写入state-xxx.st
     private Map<Index, Long> writeIndicesMetadata(AtomicClusterStateWriter writer, ClusterState newState)
         throws WriteStateException {
         Map<Index, Long> previouslyWrittenIndices = previousManifest.getIndexGenerations();
@@ -185,7 +185,7 @@ public class IncrementalClusterStateWriter {
             IndexMetadata newIndexMetadata = newMetadata.getIndexSafe(index);
             IndexMetadata previousIndexMetadata = previousMetadata == null ? null : previousMetadata.index(index);
 
-            if (previouslyWrittenIndices.containsKey(index) == false || previousIndexMetadata == null) {
+            if (previouslyWrittenIndices.containsKey(index) == false || previousIndexMetadata == null) { // 跑到这里了
                 actions.add(new WriteNewIndexMetadata(newIndexMetadata));
             } else if (previousIndexMetadata.getVersion() != newIndexMetadata.getVersion()) {
                 actions.add(new WriteChangedIndexMetadata(previousIndexMetadata, newIndexMetadata));
@@ -236,7 +236,7 @@ public class IncrementalClusterStateWriter {
     static class AtomicClusterStateWriter {
         private static final String FINISHED_MSG = "AtomicClusterStateWriter is finished";
         private final List<Runnable> commitCleanupActions;
-        private final List<Runnable> rollbackCleanupActions;
+        private final List<Runnable> rollbackCleanupActions; // 集群元数据写入时候后如何回滚回去
         private final Manifest previousManifest;
         private final MetaStateService metaStateService;
         private boolean finished;
@@ -256,9 +256,9 @@ public class IncrementalClusterStateWriter {
         long writeGlobalState(String reason, Metadata metadata) throws WriteStateException {
             assert finished == false : FINISHED_MSG;
             try {
-                rollbackCleanupActions.add(() -> metaStateService.cleanupGlobalState(previousManifest.getGlobalGeneration()));
+                rollbackCleanupActions.add(() -> metaStateService.cleanupGlobalState(previousManifest.getGlobalGeneration()));// 就是把保留旧版本的globa
                 long generation = metaStateService.writeGlobalState(reason, metadata);
-                commitCleanupActions.add(() -> metaStateService.cleanupGlobalState(generation));
+                commitCleanupActions.add(() -> metaStateService.cleanupGlobalState(generation));// 就是保留新版本的global
                 return generation;
             } catch (WriteStateException e) {
                 rollback();

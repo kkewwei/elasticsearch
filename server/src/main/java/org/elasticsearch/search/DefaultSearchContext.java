@@ -96,7 +96,7 @@ final class DefaultSearchContext extends SearchContext {
     private final IndexShard indexShard;
     private final ClusterService clusterService;
     private final IndexService indexService;
-    private final ContextIndexSearcher searcher;
+    private final ContextIndexSearcher searcher; //ContextIndexSearcher
     private final DfsSearchResult dfsResult;
     private final QuerySearchResult queryResult;
     private final FetchSearchResult fetchResult;
@@ -119,7 +119,7 @@ final class DefaultSearchContext extends SearchContext {
     private SortAndFormats sort;
     private Float minimumScore;
     private boolean trackScores = false; // when sorting, track scores as well...
-    private int trackTotalHitsUpTo = SearchContext.DEFAULT_TRACK_TOTAL_HITS_UP_TO;
+    private int trackTotalHitsUpTo = SearchContext.DEFAULT_TRACK_TOTAL_HITS_UP_TO; // 默认值
     private FieldDoc searchAfter;
     private CollapseContext collapse;
     // filter for sliced scroll
@@ -146,15 +146,15 @@ final class DefaultSearchContext extends SearchContext {
     private SearchContextAggregations aggregations;
     private SearchContextHighlight highlight;
     private SuggestionSearchContext suggest;
-    private List<RescoreContext> rescore;
-    private volatile long keepAlive;
+    private List<RescoreContext> rescore; // 为null
+    private volatile long keepAlive;  //30s
     private final long originNanoTime = System.nanoTime();
     private volatile long lastAccessTime = -1;
     private Profilers profilers;
 
     private final Map<String, SearchExtBuilder> searchExtBuilders = new HashMap<>();
     private final Map<Class<?>, Collector> queryCollectors = new HashMap<>();
-    private final QueryShardContext queryShardContext;
+    private final QueryShardContext queryShardContext;  // shard级别的上下文
     private final FetchPhase fetchPhase;
 
     DefaultSearchContext(SearchContextId id, ShardSearchRequest request, SearchShardTarget shardTarget,
@@ -175,7 +175,7 @@ final class DefaultSearchContext extends SearchContext {
         this.indexShard = indexShard;
         this.indexService = indexService;
         this.clusterService = clusterService;
-        this.searcher = new ContextIndexSearcher(engineSearcher.getIndexReader(), engineSearcher.getSimilarity(),
+        this.searcher = new ContextIndexSearcher(engineSearcher.getIndexReader(), engineSearcher.getSimilarity(), // 进来会获取
             engineSearcher.getQueryCache(), engineSearcher.getQueryCachingPolicy(), lowLevelCancellation);
         this.relativeTimeSupplier = relativeTimeSupplier;
         this.timeout = timeout;
@@ -245,8 +245,8 @@ final class DefaultSearchContext extends SearchContext {
 
         // initialize the filtering alias based on the provided filters
         try {
-            final QueryBuilder queryBuilder = request.getAliasFilter().getQueryBuilder();
-            aliasFilter = queryBuilder == null ? null : queryBuilder.toQuery(queryShardContext);
+            final QueryBuilder queryBuilder = request.getAliasFilter().getQueryBuilder(); // 为null
+            aliasFilter = queryBuilder == null ? null : queryBuilder.toQuery(queryShardContext); // 为null
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -254,13 +254,13 @@ final class DefaultSearchContext extends SearchContext {
         if (query() == null) {
             parsedQuery(ParsedQuery.parsedMatchAllQuery());
         }
-        if (queryBoost() != AbstractQueryBuilder.DEFAULT_BOOST) {
+        if (queryBoost() != AbstractQueryBuilder.DEFAULT_BOOST) {// 跑这里，为MatchNoDocsQuery
             parsedQuery(new ParsedQuery(new BoostQuery(query(), queryBoost), parsedQuery()));
         }
-        this.query = buildFilteredQuery(query);
-        if (rewrite) {
+        this.query = buildFilteredQuery(query); // 仍然是MatchNoDocsQuery
+        if (rewrite) {  //是否需要重写，默认为true
             try {
-                this.query = searcher.rewrite(query);
+                this.query = searcher.rewrite(query); // ContextIndexSearcher
             } catch (IOException e) {
                 throw new QueryPhaseExecutionException(shardTarget, "Failed to rewrite main query", e);
             }

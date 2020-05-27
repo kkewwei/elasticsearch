@@ -72,7 +72,7 @@ public class InboundHandler {
         channel.getChannelStats().markAccessed(threadPool.relativeTimeInMillis());
         TransportLogger.logInboundMessage(channel, message);
 
-        if (message.isPing()) {
+        if (message.isPing()) { // 若长度为0，就是一个ping
             keepAlive.receiveKeepAlive(channel);
         } else {
             messageReceived(channel, message);
@@ -89,7 +89,7 @@ public class InboundHandler {
             // Place the context with the headers from the message
             threadContext.setHeaders(header.getHeaders());
             threadContext.putTransient("_remote_address", remoteAddress);
-            if (header.isRequest()) {
+            if (header.isRequest()) {// handchake也进来
                 handleRequest(channel, header, message);
             } else {
                 // Responses do not support short circuiting currently

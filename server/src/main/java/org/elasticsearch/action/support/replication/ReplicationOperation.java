@@ -106,9 +106,9 @@ public class ReplicationOperation<
 
         totalShards.incrementAndGet();
         pendingActions.incrementAndGet(); // increase by 1 until we finish all primary coordination
-        primary.perform(request, ActionListener.wrap(this::handlePrimaryResult, resultListener::onFailure));
+        primary.perform(request, ActionListener.wrap(this::handlePrimaryResult, resultListener::onFailure)); // 定义了写完主本后再写副本的
     }
-
+    // 写副本会跑到这里。主本写完了
     private void handlePrimaryResult(final PrimaryResultT primaryResult) {
         this.primaryResult = primaryResult;
         final ReplicaRequest replicaRequest = primaryResult.replicaRequest();
@@ -129,10 +129,10 @@ public class ReplicationOperation<
             // on.
             final long maxSeqNoOfUpdatesOrDeletes = primary.maxSeqNoOfUpdatesOrDeletes();
             assert maxSeqNoOfUpdatesOrDeletes != SequenceNumbers.UNASSIGNED_SEQ_NO : "seqno_of_updates still uninitialized";
-            final ReplicationGroup replicationGroup = primary.getReplicationGroup();
+            final ReplicationGroup replicationGroup = primary.getReplicationGroup();// 几个副本
             markUnavailableShardsAsStale(replicaRequest, replicationGroup);
-            performOnReplicas(replicaRequest, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes, replicationGroup);
-        }
+            performOnReplicas(replicaRequest, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes, replicationGroup); // 写副本
+        }// 写完副本了，开始检查translog写入方式
         primaryResult.runPostReplicationActions(new ActionListener<Void>() {
 
             @Override
@@ -173,8 +173,8 @@ public class ReplicationOperation<
         final ShardRouting primaryRouting = primary.routingEntry();
 
         for (final ShardRouting shard : replicationGroup.getReplicationTargets()) {
-            if (shard.isSameAllocation(primaryRouting) == false) {
-                performOnReplica(shard, replicaRequest, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes);
+            if (shard.isSameAllocation(primaryRouting) == false) { //
+                performOnReplica(shard, replicaRequest, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes); // 写副本
             }
         }
     }
@@ -342,7 +342,7 @@ public class ReplicationOperation<
          *
          * @param request the request to perform
          * @param listener result listener
-         */
+         */ // 写入时跑入了TransportReplicationAction里面
         void perform(RequestT request, ActionListener<PrimaryResultT> listener);
 
         /**

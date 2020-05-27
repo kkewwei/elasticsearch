@@ -63,7 +63,7 @@ public interface Rewriteable<T> {
      * @throws IOException if an {@link IOException} occurs
      */
     static <T extends Rewriteable<T>> T rewrite(T original, QueryRewriteContext context, boolean assertNoAsyncTasks) throws IOException {
-        T builder = original;
+        T builder = original; // 第一次，是从SearchService.createSearchContext()中跳转过来的
         int iteration = 0;
         for (T rewrittenBuilder = builder.rewrite(context); rewrittenBuilder != builder;
              rewrittenBuilder = builder.rewrite(context)) {
@@ -92,10 +92,10 @@ public interface Rewriteable<T> {
      */
     static <T extends Rewriteable<T>> void rewriteAndFetch(T original, QueryRewriteContext context, ActionListener<T>
         rewriteResponse, int iteration) {
-        T builder = original;
+        T builder = original; // SearchSourceBuilder
         try {
             for (T rewrittenBuilder = builder.rewrite(context); rewrittenBuilder != builder;
-                 rewrittenBuilder = builder.rewrite(context)) {
+                 rewrittenBuilder = builder.rewrite(context)) { // 是在这里改写的
                 builder = rewrittenBuilder;
                 if (iteration++ >= MAX_REWRITE_ROUNDS) {
                     // this is some protection against user provided queries if they don't obey the contract of rewrite we allow 16 rounds

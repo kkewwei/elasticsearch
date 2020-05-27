@@ -118,12 +118,12 @@ final class FetchSearchPhase extends SearchPhase {
         final Runnable finishPhase = ()
             -> moveToNextPhase(searchPhaseController, scrollId, reducedQueryPhase, queryAndFetchOptimization ?
             queryResults : fetchResults);
-        if (queryAndFetchOptimization) {
+        if (queryAndFetchOptimization) { //只有单个shard才会直接进来
             assert phaseResults.isEmpty() || phaseResults.get(0).fetchResult() != null : "phaseResults empty [" + phaseResults.isEmpty()
                 + "], single result: " +  phaseResults.get(0).fetchResult();
             // query AND fetch optimization
             finishPhase.run();
-        } else {
+        } else {// 一般进来
             ScoreDoc[] scoreDocs = reducedQueryPhase.sortedTopDocs.scoreDocs;
             final IntArrayList[] docIdsToLoad = searchPhaseController.fillDocIdsToLoad(numShards, scoreDocs);
             // no docs to fetch -- sidestep everything and return
@@ -133,7 +133,7 @@ final class FetchSearchPhase extends SearchPhase {
                     .map(SearchPhaseResult::queryResult)
                     .forEach(this::releaseIrrelevantSearchContext);
                 finishPhase.run();
-            } else {
+            } else {// 一般进来
                 final ScoreDoc[] lastEmittedDocPerShard = isScrollSearch ?
                     searchPhaseController.getLastEmittedDocPerShard(reducedQueryPhase, numShards)
                     : null;
@@ -153,13 +153,13 @@ final class FetchSearchPhase extends SearchPhase {
                         }
                         // in any case we count down this result since we don't talk to this shard anymore
                         counter.countDown();
-                    } else {
+                    } else {// 一般进来
                         SearchShardTarget searchShardTarget = queryResult.getSearchShardTarget();
                         Transport.Connection connection = context.getConnection(searchShardTarget.getClusterAlias(),
                             searchShardTarget.getNodeId());
                         ShardFetchSearchRequest fetchSearchRequest = createFetchRequest(queryResult.queryResult().getContextId(), i, entry,
                             lastEmittedDocPerShard, searchShardTarget.getOriginalIndices());
-                        executeFetch(i, searchShardTarget, counter, fetchSearchRequest, queryResult.queryResult(),
+                        executeFetch(i, searchShardTarget, counter, fetchSearchRequest, queryResult.queryResult(), //进来向远方发送获取单个文档source的部分
                             connection);
                     }
                 }
@@ -222,11 +222,11 @@ final class FetchSearchPhase extends SearchPhase {
             }
         }
     }
-
+    // 这里会进行response发送到管道
     private void moveToNextPhase(SearchPhaseController searchPhaseController,
                                  String scrollId, SearchPhaseController.ReducedQueryPhase reducedQueryPhase,
                                  AtomicArray<? extends SearchPhaseResult> fetchResultsArr) {
-        final InternalSearchResponse internalResponse = searchPhaseController.merge(context.getRequest().scroll() != null,
+        final InternalSearchResponse internalResponse = searchPhaseController.merge(context.getRequest().scroll() != null, // 这里就已经取数合并了
             reducedQueryPhase, fetchResultsArr.asList(), fetchResultsArr::get);
         context.executeNextPhase(this, nextPhaseFactory.apply(internalResponse, scrollId));
     }

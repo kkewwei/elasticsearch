@@ -81,7 +81,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     public static final String DIRECT_RESPONSE_PROFILE = ".direct";
     public static final String HANDSHAKE_ACTION_NAME = "internal:transport/handshake";
 
-    private final AtomicBoolean handleIncomingRequests = new AtomicBoolean();
+    private final AtomicBoolean handleIncomingRequests = new AtomicBoolean();  // 可以开始接受别人的请求了，
     private final DelegatingTransportMessageListener messageListener = new DelegatingTransportMessageListener();
     protected final Transport transport;
     protected final ConnectionManager connectionManager;
@@ -153,7 +153,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
      */
     public TransportService(Settings settings, Transport transport, ThreadPool threadPool, TransportInterceptor transportInterceptor,
                             Function<BoundTransportAddress, DiscoveryNode> localNodeFactory, @Nullable ClusterSettings clusterSettings,
-                            Set<String> taskHeaders) {
+                            Set<String> taskHeaders) { // 会设置连接管道个数
         this(settings, transport, threadPool, transportInterceptor, localNodeFactory, clusterSettings, taskHeaders,
             new ClusterConnectionManager(settings, transport));
     }
@@ -809,7 +809,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                     @Override
                     public void onFailure(Exception e) {
                         try {
-                            channel.sendResponse(e);
+                            channel.sendResponse(e); // 抛异常了，直返回去
                         } catch (Exception inner) {
                             inner.addSuppressed(e);
                             logger.warn(() -> new ParameterizedMessage(
@@ -946,7 +946,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] received request", requestId, action);
         }
-        messageListener.onRequestReceived(requestId, action);
+        messageListener.onRequestReceived(requestId, action); // 没做啥
     }
 
     /** called by the {@link Transport} implementation once a request has been sent */

@@ -61,7 +61,7 @@ public abstract class AsyncIOProcessor<Item> {
 
         // we first try make a promise that we are responsible for the processing
         final boolean promised = promiseSemaphore.tryAcquire();
-        if (promised == false) {
+        if (promised == false) {// 一般会跳过
             // in this case we are not responsible and can just block until there is space
             try {
                 queue.put(new Tuple<>(item, preserveContext(listener)));
@@ -92,7 +92,7 @@ public abstract class AsyncIOProcessor<Item> {
     private void drainAndProcessAndRelease(List<Tuple<Item, Consumer<Exception>>> candidates) {
         Exception exception;
         try {
-            queue.drainTo(candidates);
+            queue.drainTo(candidates); // 一次性从queue只能改获取所有可用元素，放入candidates中
             exception = processList(candidates);
         } finally {
             promiseSemaphore.release();

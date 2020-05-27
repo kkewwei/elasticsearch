@@ -71,7 +71,7 @@ final class ExpandSearchPhase extends SearchPhase {
             if (collapseBuilder.getMaxConcurrentGroupRequests() > 0) {
                 multiRequest.maxConcurrentSearchRequests(collapseBuilder.getMaxConcurrentGroupRequests());
             }
-            for (SearchHit hit : searchResponse.hits().getHits()) {
+            for (SearchHit hit : searchResponse.hits().getHits()) { // 遍历每一个即将发送的请求
                 BoolQueryBuilder groupQuery = new BoolQueryBuilder();
                 Object collapseValue = hit.field(collapseBuilder.getField()).getValue();
                 if (collapseValue != null) {
@@ -114,7 +114,7 @@ final class ExpandSearchPhase extends SearchPhase {
                 }, context::onFailure)
             );
         } else {
-            context.sendSearchResponse(searchResponse, scrollId);
+            context.sendSearchResponse(searchResponse, scrollId); // 这里会进行response操作
         }
     }
 

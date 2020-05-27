@@ -91,7 +91,7 @@ public final class TaskId implements Writeable {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeString(nodeId);
+        out.writeString(nodeId); // 写入nodeId,默认""
         if (nodeId.isEmpty()) {
             // Shortcut the EMPTY_TASK_ID, the only TaskId allowed to have the empty string as its nodeId.
             return;

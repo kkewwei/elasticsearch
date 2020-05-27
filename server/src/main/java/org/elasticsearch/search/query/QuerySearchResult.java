@@ -42,7 +42,7 @@ import org.elasticsearch.search.internal.SearchContextId;
 import org.elasticsearch.search.profile.ProfileShardResult;
 import org.elasticsearch.search.suggest.Suggest;
 
-public final class QuerySearchResult extends SearchPhaseResult {
+public final class QuerySearchResult extends SearchPhaseResult {// 查询结果存放的地方
 
     private int from;
     private int size;

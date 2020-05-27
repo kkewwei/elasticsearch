@@ -196,7 +196,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     @Override
     protected void doStart() {
         // Doesn't make sense to manage shards on non-master and non-data nodes
-        if (DiscoveryNode.isDataNode(settings) || DiscoveryNode.isMasterNode(settings)) {
+        if (DiscoveryNode.isDataNode(settings) || DiscoveryNode.isMasterNode(settings)) { // 只有在master或者在data节点上才起效
             clusterService.addHighPriorityApplier(this);
         }
     }
@@ -243,9 +243,9 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
         updateIndices(event); // can also fail shards, but these are then guaranteed to be in failedShardsCache
 
-        createIndices(state);
+        createIndices(state); // 在本地创建索引结构
 
-        createOrUpdateShards(state);
+        createOrUpdateShards(state); // 恢复或者创建分片
     }
 
     /**
@@ -465,23 +465,23 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         }
         // create map of indices to create with shards to fail if index creation fails
         final Map<Index, List<ShardRouting>> indicesToCreate = new HashMap<>();
-        for (ShardRouting shardRouting : localRoutingNode) {
+        for (ShardRouting shardRouting : localRoutingNode) { // 遍历过滤所有的本地分片
             if (failedShardsCache.containsKey(shardRouting.shardId()) == false) {
                 final Index index = shardRouting.index();
                 if (indicesService.indexService(index) == null) {
-                    indicesToCreate.computeIfAbsent(index, k -> new ArrayList<>()).add(shardRouting);
+                    indicesToCreate.computeIfAbsent(index, k -> new ArrayList<>()).add(shardRouting);// 每个索引->分片进行归类
                 }
             }
         }
 
-        for (Map.Entry<Index, List<ShardRouting>> entry : indicesToCreate.entrySet()) {
+        for (Map.Entry<Index, List<ShardRouting>> entry : indicesToCreate.entrySet()) { // 遍历每个本节点上的索引
             final Index index = entry.getKey();
             final IndexMetadata indexMetadata = state.metadata().index(index);
             logger.debug("[{}] creating index", index);
 
             AllocatedIndex<? extends Shard> indexService = null;
             try {
-                indexService = indicesService.createIndex(indexMetadata, buildInIndexListener, true);
+                indexService = indicesService.createIndex(indexMetadata, buildInIndexListener, true);// 建立IndexService
                 if (indexService.updateMapping(null, indexMetadata) && sendRefreshMapping) {
                     nodeMappingRefreshAction.nodeMappingRefresh(state.nodes().getMasterNode(),
                         new NodeMappingRefreshAction.NodeMappingRefreshRequest(indexMetadata.getIndex().getName(),
@@ -566,7 +566,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 if (shard == null) {
                     assert shardRouting.initializing() : shardRouting + " should have been removed by failMissingShards";
                     createShard(nodes, routingTable, shardRouting, state);
-                } else {
+                } else { // shard 存在
                     updateShard(nodes, shardRouting, shard, routingTable, state);
                 }
             }
@@ -589,7 +589,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             final long primaryTerm = state.metadata().index(shardRouting.index()).primaryTerm(shardRouting.id());
             logger.debug("{} creating shard with primary term [{}]", shardRouting.shardId(), primaryTerm);
             RecoveryState recoveryState = new RecoveryState(shardRouting, nodes.getLocalNode(), sourceNode);
-            indicesService.createShard(
+            indicesService.createShard( // 这里会创建InternalEngine
                     shardRouting,
                     recoveryState,
                     recoveryTargetService,

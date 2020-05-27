@@ -70,7 +70,7 @@ public abstract class MetadataStateFormat<T> {
     private static final String STATE_FILE_CODEC = "state";
     private static final int MIN_COMPATIBLE_STATE_FILE_VERSION = 1;
     private static final int STATE_FILE_VERSION = 1;
-    private final String prefix;
+    private final String prefix;  // 可以使global-
     private final Pattern stateFilePattern;
 
     private static final Logger logger = LogManager.getLogger(MetadataStateFormat.class);
@@ -99,14 +99,14 @@ public abstract class MetadataStateFormat<T> {
             logger.trace("clean up failed {}", stateLocation.resolve(fileName));
         }
     }
-
+    // 可能是globale.st  或者每个索引的state.st文件
     private void writeStateToFirstLocation(final T state, Path stateLocation, Directory stateDir, String tmpFileName)
             throws WriteStateException {
         try {
             deleteFileIfExists(stateLocation, stateDir, tmpFileName);
             try (IndexOutput out = stateDir.createOutput(tmpFileName, IOContext.DEFAULT)) {
-                CodecUtil.writeHeader(out, STATE_FILE_CODEC, STATE_FILE_VERSION);
-                out.writeInt(FORMAT.index());
+                CodecUtil.writeHeader(out, STATE_FILE_CODEC, STATE_FILE_VERSION);  // 先写头
+                out.writeInt(FORMAT.index()); // 再写编译骄傲本
                 try (XContentBuilder builder = newXContentBuilder(FORMAT, new IndexOutputOutputStream(out) {
                     @Override
                     public void close() {
@@ -118,10 +118,10 @@ public abstract class MetadataStateFormat<T> {
                     toXContent(builder, state);
                     builder.endObject();
                 }
-                CodecUtil.writeFooter(out);
+                CodecUtil.writeFooter(out);  // 再写尾部
             }
 
-            stateDir.sync(Collections.singleton(tmpFileName));
+            stateDir.sync(Collections.singleton(tmpFileName));  // SimpleFSDirectory.sync
         } catch (Exception e) {
             throw new WriteStateException(false, "failed to write state to the first location tmp file " +
                     stateLocation.resolve(tmpFileName), e);
@@ -131,7 +131,7 @@ public abstract class MetadataStateFormat<T> {
     private static void copyStateToExtraLocations(List<Tuple<Path, Directory>> stateDirs, String tmpFileName)
             throws WriteStateException {
         Directory srcStateDir = stateDirs.get(0).v2();
-        for (int i = 1; i < stateDirs.size(); i++) {
+        for (int i = 1; i < stateDirs.size(); i++) { // 从第二个路径开始拷贝
             Tuple<Path, Directory> extraStatePathAndDir = stateDirs.get(i);
             Path extraStateLocation = extraStatePathAndDir.v1();
             Directory extraStateDir = extraStatePathAndDir.v2();
@@ -204,7 +204,7 @@ public abstract class MetadataStateFormat<T> {
      * @param locations the locations where the state should be written to.
      * @throws WriteStateException if some exception during writing state occurs. See also {@link WriteStateException#isDirty()}.
      * @return generation of newly written state.
-     */
+     */  // 向这个路径下每个路径都写入， 可能是全集群的metaState，也可以是每个索引的meta
     public final long write(final T state, final Path... locations) throws WriteStateException {
         return write(state, false, locations);
     }
@@ -220,14 +220,14 @@ public abstract class MetadataStateFormat<T> {
         final long oldGenerationId, newGenerationId;
         try {
             oldGenerationId = findMaxGenerationId(prefix, locations);
-            newGenerationId = oldGenerationId + 1;
+            newGenerationId = oldGenerationId + 1;  // 这里进行global+1为新的版本/为每个索引的版本号+1
         } catch (Exception e) {
             throw new WriteStateException(false, "exception during looking up new generation id", e);
         }
         assert newGenerationId >= 0 : "newGenerationId must be positive but was: [" + oldGenerationId + "]";
 
         final String fileName = getStateFileName(newGenerationId);
-        final String tmpFileName = fileName + ".tmp";
+        final String tmpFileName = fileName + ".tmp";  // 创建的是临时文件
         List<Tuple<Path, Directory>> directories = new ArrayList<>();
 
         try {
@@ -240,10 +240,10 @@ public abstract class MetadataStateFormat<T> {
                 }
             }
 
-            writeStateToFirstLocation(state, directories.get(0).v1(), directories.get(0).v2(), tmpFileName);
-            copyStateToExtraLocations(directories, tmpFileName);
-            performRenames(tmpFileName, fileName, directories);
-            performStateDirectoriesFsync(directories);
+            writeStateToFirstLocation(state, directories.get(0).v1(), directories.get(0).v2(), tmpFileName); // 只把metaData元数据写入第一个路径
+            copyStateToExtraLocations(directories, tmpFileName); // 然后再把元数据临时文件依次拷贝过去
+            performRenames(tmpFileName, fileName, directories); // 把global-xxx.st.tmp文件改名过来
+            performStateDirectoriesFsync(directories); // 将元数据磁盘化
         } catch (WriteStateException e) {
             if (cleanup) {
                 cleanupOldFiles(oldGenerationId, locations);
@@ -251,7 +251,7 @@ public abstract class MetadataStateFormat<T> {
             throw e;
         } finally {
             for (Tuple<Path, Directory> pathAndDirectory : directories) {
-                deleteFileIgnoreExceptions(pathAndDirectory.v1(), pathAndDirectory.v2(), tmpFileName);
+                deleteFileIgnoreExceptions(pathAndDirectory.v1(), pathAndDirectory.v2(), tmpFileName); // 删除掉旧的可能还存在的临时文件
                 IOUtils.closeWhileHandlingException(pathAndDirectory.v2());
             }
         }
@@ -282,24 +282,24 @@ public abstract class MetadataStateFormat<T> {
     /**
      * Reads the state from a given file and compares the expected version against the actual version of
      * the state.
-     */
+     */  // 可以是/data1/_state/node-186.st， mainfest.st，global.st
     public final T read(NamedXContentRegistry namedXContentRegistry, Path file) throws IOException {
-        try (Directory dir = newDirectory(file.getParent())) {
-            try (IndexInput indexInput = dir.openInput(file.getFileName().toString(), IOContext.DEFAULT)) {
+        try (Directory dir = newDirectory(file.getParent())) { // SimpleFSDirectory
+            try (IndexInput indexInput = dir.openInput(file.getFileName().toString(), IOContext.DEFAULT)) { //
                 // We checksum the entire file before we even go and parse it. If it's corrupted we barf right here.
-                CodecUtil.checksumEntireFile(indexInput);
-                CodecUtil.checkHeader(indexInput, STATE_FILE_CODEC, MIN_COMPATIBLE_STATE_FILE_VERSION, STATE_FILE_VERSION);
-                final XContentType xContentType = XContentType.values()[indexInput.readInt()];
+                CodecUtil.checksumEntireFile(indexInput); // 主要是检查尾部的数据内容(魔术+checkSum)，是否别currupt
+                CodecUtil.checkHeader(indexInput, STATE_FILE_CODEC, MIN_COMPATIBLE_STATE_FILE_VERSION, STATE_FILE_VERSION); // 检查头部（魔术+coder+version）
+                final XContentType xContentType = XContentType.values()[indexInput.readInt()]; //首先读取xml格式为smile格式
                 if (xContentType != FORMAT) {
                     throw new IllegalStateException("expected state in " + file + " to be " + FORMAT + " format but was " + xContentType);
                 }
-                long filePointer = indexInput.getFilePointer();
-                long contentSize = indexInput.length() - CodecUtil.footerLength() - filePointer;
-                try (IndexInput slice = indexInput.slice("state_xcontent", filePointer, contentSize)) {
+                long filePointer = indexInput.getFilePointer(); // 获取已经读取的文件长度
+                long contentSize = indexInput.length() - CodecUtil.footerLength() - filePointer; // 获取文件内容
+                try (IndexInput slice = indexInput.slice("state_xcontent", filePointer, contentSize)) { // 开始读取这段文件
                     try (XContentParser parser = XContentFactory.xContent(FORMAT)
                             .createParser(namedXContentRegistry, LoggingDeprecationHandler.INSTANCE,
                                     new InputStreamIndexInput(slice, contentSize))) {
-                        return fromXContent(parser);
+                        return fromXContent(parser); // 可以是MetaData  或者Manifest
                     }
                 }
             } catch(CorruptIndexException | IndexFormatTooOldException | IndexFormatTooNewException ex) {
@@ -343,18 +343,18 @@ public abstract class MetadataStateFormat<T> {
      * @param prefix    - filename prefix
      * @param locations - paths to directories with state folder
      * @return maximum id of state file or -1 if no such files are found
-     * @throws IOException if IOException occurs
-     */
+     * @throws IOException if IOExmanifest-4880.stception occurs
+     */ // 仅仅是从每个/data*/_state/manifest-number.st找到最大的那个number    从每个/data*/indices/8l11ps2zRwGmQ0vW8aDTSA/_state/state-number.st找到每个索引最大的那个number
     private long findMaxGenerationId(final String prefix, Path... locations) throws IOException {
         long maxId = -1;
-        for (Path dataLocation : locations) {
-            final Path resolve = dataLocation.resolve(STATE_DIR_NAME);
+        for (Path dataLocation : locations) { // 从所有路径的所有文件中找
+            final Path resolve = dataLocation.resolve(STATE_DIR_NAME); // mainfest-xxx.st
             if (Files.exists(resolve)) {
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(resolve, prefix + "*")) {
                     for (Path stateFile : stream) {
                         final Matcher matcher = stateFilePattern.matcher(stateFile.getFileName().toString());
                         if (matcher.matches()) {
-                            final long id = Long.parseLong(matcher.group(1));
+                            final long id = Long.parseLong(matcher.group(1)); // 是从文件名称中取得的最大值
                             maxId = Math.max(maxId, id);
                         }
                     }
@@ -370,7 +370,7 @@ public abstract class MetadataStateFormat<T> {
             return files;
         }
 
-        final String fileName = getStateFileName(generation);
+        final String fileName = getStateFileName(generation); //
         for (Path dataLocation : locations) {
             final Path stateFilePath = dataLocation.resolve(STATE_DIR_NAME).resolve(fileName);
             if (Files.exists(stateFilePath)) {
@@ -383,7 +383,7 @@ public abstract class MetadataStateFormat<T> {
     }
 
     public String getStateFileName(long generation) {
-        return prefix + generation + STATE_FILE_EXTENSION;
+        return prefix + generation + STATE_FILE_EXTENSION;  // 获取元数据文件名称/path1/_state/manifest-4880.st，， global-xxx.st
     }
 
     /**
@@ -399,9 +399,9 @@ public abstract class MetadataStateFormat<T> {
         List<Path> stateFiles = findStateFilesByGeneration(generation, dataLocations);
 
         final List<Throwable> exceptions = new ArrayList<>();
-        for (Path stateFile : stateFiles) {
+        for (Path stateFile : stateFiles) { // 每个state文件路径：/path*/_state/manifest-4880.st
             try {
-                T state = read(namedXContentRegistry, stateFile);
+                T state = read(namedXContentRegistry, stateFile); // 可以是Manifest, global中
                 logger.trace("generation id [{}] read from [{}]", generation, stateFile.getFileName());
                 return state;
             } catch (Exception e) {
@@ -429,9 +429,9 @@ public abstract class MetadataStateFormat<T> {
      */
     public Tuple<T, Long> loadLatestStateWithGeneration(Logger logger, NamedXContentRegistry namedXContentRegistry, Path... dataLocations)
             throws IOException {
-        long generation = findMaxGenerationId(prefix, dataLocations);
-        T state = loadGeneration(logger, namedXContentRegistry, generation, dataLocations);
-
+        long generation = findMaxGenerationId(prefix, dataLocations); // 从每个/data*/_state/manifest-number.st找到最大的那个number
+        T state = loadGeneration(logger, namedXContentRegistry, generation, dataLocations);  // 只要读取一个就返回，直接整个对象解析成, 可以解析这三个文件：global-261.st    manifest-4880.st node-190.st
+        // 可以使MainFest
         if (generation > -1 && state == null) {
             throw new IllegalStateException("unable to find state files with generation id " + generation +
                     " returned by findMaxGenerationId function, in data folders [" +

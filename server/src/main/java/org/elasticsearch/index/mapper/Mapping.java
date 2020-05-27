@@ -87,7 +87,7 @@ public final class Mapping implements ToXContentFragment {
     }
 
     /** @see DocumentMapper#merge(Mapping) */
-    public Mapping merge(Mapping mergeWith) {
+    public Mapping merge(Mapping mergeWith) { // 这里才是两个Mapping之间的合并
         RootObjectMapper mergedRoot = root.merge(mergeWith.root);
         Map<Class<? extends MetadataFieldMapper>, MetadataFieldMapper> mergedMetadataMappers = new HashMap<>(metadataMappersMap);
         for (MetadataFieldMapper metaMergeWith : mergeWith.metadataMappers) {

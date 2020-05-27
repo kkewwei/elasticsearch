@@ -50,10 +50,10 @@ public class CoordinationState {
     private final ElectionStrategy electionStrategy;
 
     // persisted state
-    private final PersistedState persistedState;
+    private final PersistedState persistedState; // GatewayPersistedState
 
     // transient state
-    private VoteCollection joinVotes;
+    private VoteCollection joinVotes; // 累计当前申请加入的选票 / 每次pulish完成后，用户的响应也会加入
     private boolean startedJoinSinceLastReboot;
     private boolean electionWon;
     private long lastPublishedVersion;
@@ -79,9 +79,9 @@ public class CoordinationState {
     public long getCurrentTerm() {
         return persistedState.getCurrentTerm();
     }
-
+    // 一定是上次持久化磁盘的元数据
     public ClusterState getLastAcceptedState() {
-        return persistedState.getLastAcceptedState();
+        return persistedState.getLastAcceptedState();  //// GatewayPersistedState
     }
 
     public long getLastAcceptedTerm() {
@@ -111,7 +111,7 @@ public class CoordinationState {
     public boolean electionWon() {
         return electionWon;
     }
-
+    // 达到了上次永久化选举节点的一半，就举办了选举master的资格了，强依赖上次的持久化数据，不到上次持久化master个数的一半，还不能选举
     public boolean isElectionQuorum(VoteCollection joinVotes) {
         return electionStrategy.isElectionQuorum(localNode, getCurrentTerm(), getLastAcceptedTerm(), getLastAcceptedVersion(),
             getLastCommittedConfiguration(), getLastAcceptedConfiguration(), joinVotes);
@@ -173,17 +173,17 @@ public class CoordinationState {
      * @return A Join that should be sent to the target node of the join.
      * @throws CoordinationStateRejectedException if the arguments were incompatible with the current state of this object.
      */
-    public Join handleStartJoin(StartJoinRequest startJoinRequest) {
-        if (startJoinRequest.getTerm() <= getCurrentTerm()) {
+    public Join handleStartJoin(StartJoinRequest startJoinRequest) { // 接收到别人的请求
+        if (startJoinRequest.getTerm() <= getCurrentTerm()) { // 调用这个函数，这里限定了，若两个一起抢的话，一个term更新后，另外一个就挂了
             logger.debug("handleStartJoin: ignoring [{}] as term provided is not greater than current term [{}]",
                 startJoinRequest, getCurrentTerm());
             throw new CoordinationStateRejectedException("incoming term " + startJoinRequest.getTerm() +
-                " not greater than current term " + getCurrentTerm());
+                " not greater than current term " + getCurrentTerm()); // 抛异常，应该是没有捕获直接丢失了
         }
 
         logger.debug("handleStartJoin: leaving term [{}] due to {}", getCurrentTerm(), startJoinRequest);
 
-        if (joinVotes.isEmpty() == false) {
+        if (joinVotes.isEmpty() == false) { // 当前节点接收到了一些选票
             final String reason;
             if (electionWon == false) {
                 reason = "failed election";
@@ -195,13 +195,13 @@ public class CoordinationState {
             logger.debug("handleStartJoin: discarding {}: {}", joinVotes, reason);
         }
 
-        persistedState.setCurrentTerm(startJoinRequest.getTerm());
+        persistedState.setCurrentTerm(startJoinRequest.getTerm()); // 将term给持久化
         assert getCurrentTerm() == startJoinRequest.getTerm();
         lastPublishedVersion = 0;
         lastPublishedConfiguration = getLastAcceptedConfiguration();
         startedJoinSinceLastReboot = true;
         electionWon = false;
-        joinVotes = new VoteCollection();
+        joinVotes = new VoteCollection(); // 选票清空
         publishVotes = new VoteCollection();
 
         return new Join(localNode, startJoinRequest.getSourceNode(), getCurrentTerm(), getLastAcceptedTerm(),
@@ -214,11 +214,11 @@ public class CoordinationState {
      * @param join The Join received.
      * @return true iff this instance does not already have a join vote from the given source node for this term
      * @throws CoordinationStateRejectedException if the arguments were incompatible with the current state of this object.
-     */
+     */  // 候选人处理投票请求？
     public boolean handleJoin(Join join) {
         assert join.targetMatches(localNode) : "handling join " + join + " for the wrong node " + localNode;
 
-        if (join.getTerm() != getCurrentTerm()) {
+        if (join.getTerm() != getCurrentTerm()) { // 肯定是相等的
             logger.debug("handleJoin: ignored join due to term mismatch (expected: [{}], actual: [{}])",
                 getCurrentTerm(), join.getTerm());
             throw new CoordinationStateRejectedException(
@@ -258,7 +258,7 @@ public class CoordinationState {
 
         boolean added = joinVotes.addJoinVote(join);
         boolean prevElectionWon = electionWon;
-        electionWon = isElectionQuorum(joinVotes);
+        electionWon = isElectionQuorum(joinVotes); // 选举成功了
         assert !prevElectionWon || electionWon : // we cannot go from won to not won
             "locaNode= " + localNode + ", join=" + join + ", joinVotes=" + joinVotes;
         logger.debug("handleJoin: added join {} from [{}] for election, electionWon={} lastAcceptedTerm={} lastAcceptedVersion={}", join,
@@ -354,7 +354,7 @@ public class CoordinationState {
 
         logger.trace("handlePublishRequest: accepting publish request for version [{}] and term [{}]",
             clusterState.version(), clusterState.term());
-        persistedState.setLastAcceptedState(clusterState);
+        persistedState.setLastAcceptedState(clusterState); // 向磁盘写入本次的集群及索引的元数据
         assert getLastAcceptedState() == clusterState;
 
         return new PublishResponse(clusterState.term(), clusterState.version());
@@ -389,8 +389,8 @@ public class CoordinationState {
 
         logger.trace("handlePublishResponse: accepted publish response for version [{}] and term [{}] from [{}]",
             publishResponse.getVersion(), publishResponse.getTerm(), sourceNode);
-        publishVotes.addVote(sourceNode);
-        if (isPublishQuorum(publishVotes)) {
+        publishVotes.addVote(sourceNode); // 从data节点响应
+        if (isPublishQuorum(publishVotes)) { // 若响应节点过半了，来一个，返回一个ApplyCommitRequest
             logger.trace("handlePublishResponse: value committed for version [{}] and term [{}]",
                 publishResponse.getVersion(), publishResponse.getTerm());
             return Optional.of(new ApplyCommitRequest(localNode, publishResponse.getTerm(), publishResponse.getVersion()));
@@ -526,10 +526,10 @@ public class CoordinationState {
      */
     public static class VoteCollection {
 
-        private final Map<String, DiscoveryNode> nodes;
-        private final Set<Join> joins;
+        private final Map<String, DiscoveryNode> nodes; // 投票结果
+        private final Set<Join> joins; //
 
-        public boolean addVote(DiscoveryNode sourceNode) {
+        public boolean addVote(DiscoveryNode sourceNode) {// 当前节点来说，对连接的每个master属性节点，都让他们给自己投一票
             return sourceNode.isMasterNode() && nodes.put(sourceNode.getId(), sourceNode) == null;
         }
 
@@ -547,7 +547,7 @@ public class CoordinationState {
         }
 
         public boolean isQuorum(VotingConfiguration configuration) {
-            return configuration.hasQuorum(nodes.keySet());
+            return configuration.hasQuorum(nodes.keySet()); // 至少大于1半
         }
 
         public boolean containsVoteFor(DiscoveryNode node) {

@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 public abstract class TaskBatcher {
 
     private final Logger logger;
-    private final PrioritizedEsThreadPoolExecutor threadExecutor;
+    private final PrioritizedEsThreadPoolExecutor threadExecutor; /// PrioritizedEsThreadPoolExecutor， 并发为1
     // package visible for tests
     final Map<Object, LinkedHashSet<BatchedTask>> tasksPerBatchingKey = new HashMap<>();
 
@@ -120,14 +120,14 @@ public abstract class TaskBatcher {
      */
     protected abstract void onTimeout(List<? extends BatchedTask> tasks, TimeValue timeout);
 
-    void runIfNotProcessed(BatchedTask updateTask) {
+    void runIfNotProcessed(BatchedTask updateTask) { //
         // if this task is already processed, it shouldn't execute other tasks with same batching key that arrived later,
         // to give other tasks with different batching key a chance to execute.
         if (updateTask.processed.get() == false) {
             final List<BatchedTask> toExecute = new ArrayList<>();
             final Map<String, List<BatchedTask>> processTasksBySource = new HashMap<>();
             synchronized (tasksPerBatchingKey) {
-                LinkedHashSet<BatchedTask> pending = tasksPerBatchingKey.remove(updateTask.batchingKey);
+                LinkedHashSet<BatchedTask> pending = tasksPerBatchingKey.remove(updateTask.batchingKey);// 获取所有未执行的task
                 if (pending != null) {
                     for (BatchedTask task : pending) {
                         if (task.processed.getAndSet(true) == false) {
@@ -180,7 +180,7 @@ public abstract class TaskBatcher {
         protected BatchedTask(Priority priority, String source, Object batchingKey, Object task) {
             super(priority, source);
             this.batchingKey = batchingKey;
-            this.task = task;
+            this.task = task; // // 真正处理这个task要做的事，
         }
 
         @Override

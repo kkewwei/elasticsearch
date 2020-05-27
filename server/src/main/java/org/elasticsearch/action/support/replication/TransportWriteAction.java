@@ -139,7 +139,7 @@ public abstract class TransportWriteAction<
                     : "expected either failure to be null or translog location to be null, " +
                     "but found: [" + location + "] translog location and [" + operationFailure + "] failure";
         }
-
+        // 当写完副本后会跑到这里
         @Override
         public void runPostReplicationActions(ActionListener<Void> listener) {
             if (finalFailure != null) {
@@ -148,7 +148,7 @@ public abstract class TransportWriteAction<
                 /*
                  * We call this after replication because this might wait for a refresh and that can take a while.
                  * This way we wait for the refresh in parallel on the primary and on the replica.
-                 */
+                 */ // 当写完主副本后，检查写入translog的情况
                 new AsyncAfterWriteAction(primary, replicaRequest, location, new RespondingWriteResult() {
                     @Override
                     public void onSuccess(boolean forcedRefresh) {
@@ -234,11 +234,11 @@ public abstract class TransportWriteAction<
      * This class encapsulates post write actions like async waits for
      * translog syncs or waiting for a refresh to happen making the write operation
      * visible.
-     */
+     */  // 每次写完主副本后，都会产生一个该类，
     static final class AsyncAfterWriteAction {
         private final Location location;
         private final boolean waitUntilRefresh;
-        private final boolean sync;
+        private final boolean sync; // 表示是否需要立刻将日志刷到translog文件中
         private final AtomicInteger pendingOps = new AtomicInteger(1);
         private final AtomicBoolean refreshed = new AtomicBoolean(false);
         private final AtomicReference<Exception> syncFailure = new AtomicReference<>(null);
@@ -255,7 +255,7 @@ public abstract class TransportWriteAction<
             this.indexShard = indexShard;
             this.request = request;
             boolean waitUntilRefresh = false;
-            switch (request.getRefreshPolicy()) {
+            switch (request.getRefreshPolicy()) { // 写完后是否需要refresh
                 case IMMEDIATE:
                     indexShard.refresh("refresh_flag_index");
                     refreshed.set(true);
@@ -274,7 +274,7 @@ public abstract class TransportWriteAction<
             this.waitUntilRefresh = waitUntilRefresh;
             this.respond = respond;
             this.location = location;
-            if ((sync = indexShard.getTranslogDurability() == Translog.Durability.REQUEST && location != null)) {
+            if ((sync = indexShard.getTranslogDurability() == Translog.Durability.REQUEST && location != null)) { // 默认是同步的
                 pendingOps.incrementAndGet();
             }
             this.logger = logger;
@@ -315,7 +315,7 @@ public abstract class TransportWriteAction<
                     maybeFinish();
                 });
             }
-            if (sync) {
+            if (sync) {// 立刻将本次OPeration刷新到translog文件中
                 assert pendingOps.get() > 0;
                 indexShard.sync(location, (ex) -> {
                     syncFailure.set(ex);

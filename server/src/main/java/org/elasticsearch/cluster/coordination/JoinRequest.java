@@ -27,7 +27,7 @@ import org.elasticsearch.transport.TransportRequest;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
-
+// 来自别的节点发送到准master节点的加入集群请求
 public class JoinRequest extends TransportRequest {
 
     /**
@@ -48,7 +48,7 @@ public class JoinRequest extends TransportRequest {
      * the sender has successfully joined the master, the lack of a vote in its term causes another election (see
      * {@link Publication#onMissingJoin(DiscoveryNode)}).
      */
-    private final Optional<Join> optionalJoin;
+    private final Optional<Join> optionalJoin;// 选票
 
     public JoinRequest(DiscoveryNode sourceNode, long minimumTerm, Optional<Join> optionalJoin) {
         assert optionalJoin.isPresent() == false || optionalJoin.get().getSourceNode().equals(sourceNode);

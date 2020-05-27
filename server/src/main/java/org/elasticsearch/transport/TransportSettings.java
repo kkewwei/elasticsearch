@@ -65,7 +65,7 @@ public final class TransportSettings {
     public static final Setting<Boolean> OLD_TRANSPORT_COMPRESS =
         boolSetting("transport.tcp.compress", false, Setting.Property.NodeScope, Setting.Property.Deprecated);
     public static final Setting<Boolean> TRANSPORT_COMPRESS =
-        boolSetting("transport.compress", OLD_TRANSPORT_COMPRESS, Setting.Property.NodeScope);
+        boolSetting("transport.compress", OLD_TRANSPORT_COMPRESS, Setting.Property.NodeScope); // 请求是否压缩
     // the scheduled internal ping interval setting, defaults to disabled (-1)
     public static final Setting<TimeValue> PING_SCHEDULE =
         timeSetting("transport.ping_schedule", TimeValue.timeValueSeconds(-1), Setting.Property.NodeScope);

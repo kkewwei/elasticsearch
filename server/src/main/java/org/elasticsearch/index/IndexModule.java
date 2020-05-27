@@ -96,7 +96,7 @@ import java.util.function.Function;
  */
 public final class IndexModule {
 
-    public static final Setting<Boolean> NODE_STORE_ALLOW_MMAP = Setting.boolSetting("node.store.allow_mmap", true, Property.NodeScope);
+    public static final Setting<Boolean> NODE_STORE_ALLOW_MMAP = Setting.boolSetting("node.store.allow_mmap", true, Property.NodeScope);//默认true
 
     private static final FsDirectoryFactory DEFAULT_DIRECTORY_FACTORY = new FsDirectoryFactory();
 
@@ -334,13 +334,13 @@ public final class IndexModule {
         return false;
     }
 
-
-    public enum Type {
-        HYBRIDFS("hybridfs"),
-        NIOFS("niofs"),
-        MMAPFS("mmapfs"),
-        SIMPLEFS("simplefs"),
-        FS("fs");
+    // 具体区别是打开文件的方式：openInput区别
+    public enum Type {// 几种文件系统区别,官网介绍：https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-store.html
+        HYBRIDFS("hybridfs"), // 是niosf何mmapfs的混合体，将基于当前环境选择最好的方式。目前词典、Norms、docValue是使用mmap。其余别的方式使用NIO方式
+        NIOFS("niofs"),//是通过NIO将分片索引文件写到文件系统上（映射到Lucene NIOFSDirectory）。它允许多线程同时读取文件。
+        MMAPFS("mmapfs"),// mmapfs类型存储分片索引到文件系统上（映射到Lucene MMapDirectory）通过映射文件到内存中（MMAP）
+        SIMPLEFS("simplefs"), // 该方法是一个简单的实现随机访问文件的文件存储系统，并发比较差，映射到Lucene SimpleFsDirectory
+        FS("fs"); // 默认的，将基于当前环境自动选择，默认会在选择hybridfs这种
 
         private final String settingsKey;
 
@@ -380,7 +380,7 @@ public final class IndexModule {
     }
 
     public static Type defaultStoreType(final boolean allowMmap) {
-        if (allowMmap && Constants.JRE_IS_64BIT && MMapDirectory.UNMAP_SUPPORTED) {
+        if (allowMmap && Constants.JRE_IS_64BIT && MMapDirectory.UNMAP_SUPPORTED) { //allowMmap默认是true，则选择hybridfs
             return Type.HYBRIDFS;
         } else if (Constants.WINDOWS) {
             return Type.SIMPLEFS;

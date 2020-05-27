@@ -42,19 +42,19 @@ public abstract class PriorityComparator implements Comparator<ShardRouting> {
         final String o1Index = o1.getIndexName();
         final String o2Index = o2.getIndexName();
         int cmp = 0;
-        if (o1Index.equals(o2Index) == false) {
+        if (o1Index.equals(o2Index) == false) { // 索引名称不同
             final Settings settingsO1 = getIndexSettings(o1.index());
             final Settings settingsO2 = getIndexSettings(o2.index());
             cmp = Long.compare(priority(settingsO2), priority(settingsO1));
             if (cmp == 0) {
-                cmp = Long.compare(timeCreated(settingsO2), timeCreated(settingsO1));
+                cmp = Long.compare(timeCreated(settingsO2), timeCreated(settingsO1));  // 创建时间
                 if (cmp == 0) {
                     cmp = o2Index.compareTo(o1Index);
                 }
             }
         }
         return cmp;
-    }
+    }  // 排名顺序： 索引创建时间（越晚越在前面）->索引优先级->索引名称
 
     private static int priority(Settings settings) {
         return IndexMetadata.INDEX_PRIORITY_SETTING.get(settings);

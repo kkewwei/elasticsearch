@@ -33,11 +33,11 @@ import java.io.IOException;
  * information about the current state of the node that provided the vote, so that
  * the receiver of the vote can determine if it has a more up-to-date state than the
  * source node.
- */
+ */ // 每个节点在每个term下只投一张选票
 public class Join implements Writeable {
-    private final DiscoveryNode sourceNode;
-    private final DiscoveryNode targetNode;
-    private final long term;
+    private final DiscoveryNode sourceNode; // 选票是谁产生的
+    private final DiscoveryNode targetNode; // 是投给谁的
+    private final long term; // peer节点接收到的那个term(最大)
     private final long lastAcceptedTerm;
     private final long lastAcceptedVersion;
 

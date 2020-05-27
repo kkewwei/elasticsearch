@@ -276,7 +276,7 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
     }
 
     public VotingConfiguration getLastAcceptedConfiguration() {
-        return coordinationMetadata().getLastAcceptedConfiguration();
+        return coordinationMetadata().getLastAcceptedConfiguration();// meta里面的一部分
     }
 
     public VotingConfiguration getLastCommittedConfiguration() {

@@ -63,9 +63,9 @@ public final class IndexSettings {
         Setting.boolSetting("index.query.parse.allow_unmapped_fields", true, Property.IndexScope);
     public static final Setting<TimeValue> INDEX_TRANSLOG_SYNC_INTERVAL_SETTING =
         Setting.timeSetting("index.translog.sync_interval", TimeValue.timeValueSeconds(5), TimeValue.timeValueMillis(100),
-            Property.Dynamic, Property.IndexScope);
+            Property.Dynamic, Property.IndexScope); // 多久检查一次,是否需要将
     public static final Setting<TimeValue> INDEX_SEARCH_IDLE_AFTER =
-        Setting.timeSetting("index.search.idle.after", TimeValue.timeValueSeconds(30),
+        Setting.timeSetting("index.search.idle.after", TimeValue.timeValueSeconds(30), // 多少时间没接收到查询请求，就认为该分片是空闲的
             TimeValue.timeValueMinutes(0), Property.IndexScope, Property.Dynamic);
     public static final Setting<Translog.Durability> INDEX_TRANSLOG_DURABILITY_SETTING =
         new Setting<>("index.translog.durability", Translog.Durability.REQUEST.name(),
@@ -85,7 +85,7 @@ public final class IndexSettings {
             }
         }, Property.IndexScope);
     // This setting is undocumented as it is considered as an escape hatch.
-    public static final Setting<Boolean> ON_HEAP_ID_TERMS_INDEX =
+    public static final Setting<Boolean> ON_HEAP_ID_TERMS_INDEX = // 将_id的词典始终放在内存中，默认是不放置的
             Setting.boolSetting("index.force_memory_id_terms_dictionary", false, Property.IndexScope);
 
     /**
@@ -184,12 +184,12 @@ public final class IndexSettings {
      */
     public static final Setting<Integer> MAX_ADJACENCY_MATRIX_FILTERS_SETTING =
         Setting.intSetting("index.max_adjacency_matrix_filters", 100, 2, Property.Dynamic, Property.IndexScope, Property.Deprecated);
-    public static final TimeValue DEFAULT_REFRESH_INTERVAL = new TimeValue(1, TimeUnit.SECONDS);
+    public static final TimeValue DEFAULT_REFRESH_INTERVAL = new TimeValue(1, TimeUnit.SECONDS); // 默认1s,就当没有设置
     public static final Setting<TimeValue> INDEX_REFRESH_INTERVAL_SETTING =
         Setting.timeSetting("index.refresh_interval", DEFAULT_REFRESH_INTERVAL, new TimeValue(-1, TimeUnit.MILLISECONDS),
             Property.Dynamic, Property.IndexScope);
     public static final Setting<ByteSizeValue> INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING =
-        Setting.byteSizeSetting("index.translog.flush_threshold_size", new ByteSizeValue(512, ByteSizeUnit.MB),
+        Setting.byteSizeSetting("index.translog.flush_threshold_size", new ByteSizeValue(512, ByteSizeUnit.MB), //检查translog文件文件是否查过512MB
             /*
              * An empty translog occupies 55 bytes on disk. If the flush threshold is below this, the flush thread
              * can get stuck in an infinite loop as the shouldPeriodicallyFlush can still be true after flushing.
@@ -359,9 +359,9 @@ public final class IndexSettings {
     private final boolean queryStringAllowLeadingWildcard;
     private final boolean defaultAllowUnmappedFields;
     private volatile Translog.Durability durability;
-    private volatile TimeValue syncInterval;
+    private volatile TimeValue syncInterval; // 只有index.translog.durability是异步的才有意义。将translog文件在内存&系统cache数据刷入磁盘（translog文件的大小是否超过了512MB)
     private volatile TimeValue refreshInterval;
-    private volatile ByteSizeValue flushThresholdSize;
+    private volatile ByteSizeValue flushThresholdSize; // 512M,  同步flush时，每次写完后，都会检查translog，不能大于该值
     private volatile TimeValue translogRetentionAge;
     private volatile ByteSizeValue translogRetentionSize;
     private volatile ByteSizeValue generationThresholdSize;
@@ -1057,7 +1057,7 @@ public final class IndexSettings {
      * {@link org.elasticsearch.threadpool.ThreadPool.Names#SEARCH_THROTTLED} thread-pool
      */
     public boolean isSearchThrottled() {
-        return searchThrottled;
+        return searchThrottled;  // 指的是frazon index
     }
 
     private void setSearchThrottled(boolean searchThrottled) {

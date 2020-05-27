@@ -105,8 +105,8 @@ public abstract class TransportReplicationAction<
     protected final String executor;
 
     // package private for testing
-    protected final String transportReplicaAction;
-    protected final String transportPrimaryAction;
+    protected final String transportReplicaAction; //  indices:data/write/bulk[s][r]
+    protected final String transportPrimaryAction; // 写的时候 indices:data/write/bulk[s][p]，实际跑到了TransportShardBulkAction中
 
     private final boolean syncGlobalCheckpointAfterOperation;
 
@@ -183,7 +183,7 @@ public abstract class TransportReplicationAction<
      *
      * @param shardRequest the request to the primary shard
      * @param primary      the primary shard to perform the operation on
-     */
+     */ // 写入时，进入的是TransportShardBulkAction
     protected abstract void shardOperationOnPrimary(Request shardRequest, IndexShard primary,
         ActionListener<PrimaryResult<ReplicaRequest, Response>> listener);
 
@@ -892,7 +892,7 @@ public abstract class TransportReplicationAction<
                 });
             }
             assert indexShard.getActiveOperationsCount() != 0 : "must perform shard operation under a permit";
-            shardOperationOnPrimary(request, indexShard, listener);
+            shardOperationOnPrimary(request, indexShard, listener); // 开始写主分片
         }
 
         @Override

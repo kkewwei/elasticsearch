@@ -27,7 +27,7 @@ import java.util.Set;
  * Opts out of the query cache if field level security is active for the current request, and it is unsafe to cache. Note that the method
  * {@link #listenForLicenseStateChanges()} must be invoked after construction of the query cache and before any other public methods are
  * invoked on this query cache.
- */
+ */ // 操作退出查询缓存
 public final class OptOutQueryCache extends AbstractIndexComponent implements LicenseStateListener, QueryCache {
 
     private final IndicesQueryCache indicesQueryCache;

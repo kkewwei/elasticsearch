@@ -149,12 +149,12 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
      * Enables low-level, frequent search cancellation checks. Enabling low-level checks will make long running searches to react
      * to the cancellation request faster. It will produce more cancellation checks but benchmarking has shown these did not
      * noticeably slow down searches.
-     */
+     */  // 可以通过task cancel机制取消正在查询的搜索
     public static final Setting<Boolean> LOW_LEVEL_CANCELLATION_SETTING =
         Setting.boolSetting("search.low_level_cancellation", true, Property.Dynamic, Property.NodeScope);
 
     public static final TimeValue NO_TIMEOUT = timeValueMillis(-1);
-    public static final Setting<TimeValue> DEFAULT_SEARCH_TIMEOUT_SETTING =
+    public static final Setting<TimeValue> DEFAULT_SEARCH_TIMEOUT_SETTING = // 默认超时时间，线上设置了30s
         Setting.timeSetting("search.default_search_timeout", NO_TIMEOUT, Property.Dynamic, Property.NodeScope);
     public static final Setting<Boolean> DEFAULT_ALLOW_PARTIAL_SEARCH_RESULTS =
             Setting.boolSetting("search.default_allow_partial_results", true, Property.Dynamic, Property.NodeScope);
@@ -187,9 +187,9 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
     private volatile long maxKeepAlive;
 
-    private volatile TimeValue defaultSearchTimeout;
+    private volatile TimeValue defaultSearchTimeout;// 默认超时时间，线上设置了30s
 
-    private volatile boolean defaultAllowPartialSearchResults;
+    private volatile boolean defaultAllowPartialSearchResults;  // 默认为true
 
     private volatile boolean lowLevelCancellation;
 
@@ -198,7 +198,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private final Cancellable keepAliveReaper;
 
     private final AtomicLong idGenerator = new AtomicLong();
-
+    // 目前正在查询的所有context
     private final ConcurrentMapLong<SearchContext> activeContexts = ConcurrentCollections.newConcurrentMapLongWithAggressiveConcurrency();
 
     private final MultiBucketConsumerService multiBucketConsumerService;
@@ -358,7 +358,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         if (canCache) {
             indicesService.loadIntoContext(request, context, queryPhase);
         } else {
-            queryPhase.execute(context);
+            queryPhase.execute(context);  // 就是QueryPhase
         }
     }
 
@@ -392,7 +392,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                     }
                 }
                 // fork the execution in the search thread pool
-                runAsync(shard, () -> executeQueryPhase(orig, task), listener);
+                runAsync(shard, () -> executeQueryPhase(orig, task), listener); // 真正的执行查询地方
             }
 
             @Override
@@ -425,13 +425,13 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     }
 
     private SearchPhaseResult executeQueryPhase(ShardSearchRequest request, SearchShardTask task) throws Exception {
-        final SearchContext context = createAndPutContext(request, task);
+        final SearchContext context = createAndPutContext(request, task); // 创建context, 并且放入全局中
         context.incRef();
         try {
-            final long afterQueryTime;
+            final long afterQueryTime;// 检查查询是否超时的工作放在了try里面
             try (SearchOperationListenerExecutor executor = new SearchOperationListenerExecutor(context)) {
                 contextProcessing(context);
-                loadOrExecuteQueryPhase(request, context);
+                loadOrExecuteQueryPhase(request, context); // 进来
                 if (context.queryResult().hasSearchContext() == false && context.scrollContext() == null) {
                     freeContext(context.id());
                 } else {
@@ -439,7 +439,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                 }
                 afterQueryTime = executor.success();
             }
-            if (request.numberOfShards() == 1) {
+            if (request.numberOfShards() == 1) { // 若只有一个shard，会进来真正加载source部分
                 return executeFetchPhase(context, afterQueryTime);
             }
             return context.queryResult();
@@ -460,7 +460,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private QueryFetchSearchResult executeFetchPhase(SearchContext context, long afterQueryTime) {
         try (SearchOperationListenerExecutor executor = new SearchOperationListenerExecutor(context, true, afterQueryTime)){
             shortcutDocIdsToLoad(context);
-            fetchPhase.execute(context);
+            fetchPhase.execute(context); // 加载source部分
             if (fetchPhaseShouldFreeContext(context)) {
                 freeContext(context.id());
             } else {
@@ -581,7 +581,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                 }
                 context.docIdsToLoad(request.docIds(), 0, request.docIdsSize());
                 try (SearchOperationListenerExecutor executor = new SearchOperationListenerExecutor(context, true, System.nanoTime())) {
-                    fetchPhase.execute(context);
+                    fetchPhase.execute(context); // 正常情况下从这里进去加载source
                     if (fetchPhaseShouldFreeContext(context)) {
                         freeContext(request.contextId());
                     } else {
@@ -678,7 +678,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                 context.scrollContext(new ScrollContext());
                 context.scrollContext().scroll = request.scroll();
             }
-            parseSource(context, request.source());
+            parseSource(context, request.source()); // 基本没做啥
 
             // if the from and size are still not set, default them
             if (context.from() == -1) {
@@ -691,7 +691,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
             // pre process
             dfsPhase.preProcess(context);
-            queryPhase.preProcess(context);
+            queryPhase.preProcess(context);  // 可以进去看下，这里也会对query进行rewrite
             fetchPhase.preProcess(context);
 
             // compute the context keep alive
@@ -728,7 +728,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
             //  Reader contexts with the same commit_id can be replaced at any time, as the Lucene doc ids are the same.
             //  Reader contexts with the same seq_id, however, can't be replaced between the query and fetch phase because
             //  the Lucene doc ids can be different.
-            final String readerId = UUIDs.base64UUID();
+            final String readerId = UUIDs.base64UUID(); // 给readerId产生一个requestId
             final SearchContextId searchContextId = new SearchContextId(readerId, idGenerator.incrementAndGet());
             searchContext = new DefaultSearchContext(searchContextId, request, shardTarget,
                 searcher, clusterService, indexService, indexShard, bigArrays, threadPool::relativeTimeInMillis, timeout,
@@ -799,10 +799,10 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         context.keepAlive(keepAlive);
     }
 
-    private void contextProcessing(SearchContext context) {
+    private void contextProcessing(SearchContext context) {  //DefaultSearchContext
         // disable timeout while executing a search
-        context.accessed(-1);
-    }
+        context.accessed( -1);
+    } // 将上次访问时间置为-1， 以免超时
 
     private void contextProcessedSuccessfully(SearchContext context) {
         context.accessed(threadPool.relativeTimeInMillis());
@@ -1154,15 +1154,15 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
      */
     public static boolean canRewriteToMatchNone(SearchSourceBuilder source) {
         if (source == null || source.query() == null || source.query() instanceof MatchAllQueryBuilder || source.suggest() != null) {
-            return false;
+            return false;  // 不被拆分为任何一个query的
         }
-        AggregatorFactories.Builder aggregations = source.aggregations();
+        AggregatorFactories.Builder aggregations = source.aggregations(); //
         return aggregations == null || aggregations.mustVisitAllDocs() == false;
     }
 
     private void rewriteAndFetchShardRequest(IndexShard shard, ShardSearchRequest request, ActionListener<ShardSearchRequest> listener) {
         ActionListener<Rewriteable> actionListener = ActionListener.wrap(r ->
-            // now we need to check if there is a pending refresh and register
+            // now we need to check if there is a pending refresh and register 查询的真正入口
             shard.awaitShardSearchActive(b -> listener.onResponse(request)),
             listener::onFailure);
         // we also do rewrite on the coordinating node (TransportSearchService) but we also need to do it here for BWC as well as
@@ -1253,8 +1253,8 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private static final class SearchOperationListenerExecutor implements AutoCloseable {
         private final SearchOperationListener listener;
         private final SearchContext context;
-        private final long time;
-        private final boolean fetch;
+        private final long time; // 这个时间就是启动时间
+        private final boolean fetch;  // 是第几个曹组，query还是fetch
         private long afterQueryTime = -1;
         private boolean closed = false;
 
@@ -1283,7 +1283,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
             assert closed == false : "already closed - while technically ok double closing is a likely a bug in this case";
             if (closed == false) {
                 closed = true;
-                if (afterQueryTime != -1) {
+                if (afterQueryTime != -1) { // query或者fetch操作成功了
                     if (fetch) {
                         listener.onFetchPhase(context, afterQueryTime - time);
                     } else {

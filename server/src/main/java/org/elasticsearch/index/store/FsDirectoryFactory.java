@@ -66,25 +66,25 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
         Files.createDirectories(location);
         return newFSDirectory(location, lockFactory, indexSettings);
     }
-
+    // 针对某个shard的读取
     protected Directory newFSDirectory(Path location, LockFactory lockFactory, IndexSettings indexSettings) throws IOException {
         final String storeType =
                 indexSettings.getSettings().get(IndexModule.INDEX_STORE_TYPE_SETTING.getKey(), IndexModule.Type.FS.getSettingsKey());
         IndexModule.Type type;
-        if (IndexModule.Type.FS.match(storeType)) {
-            type = IndexModule.defaultStoreType(IndexModule.NODE_STORE_ALLOW_MMAP.get(indexSettings.getNodeSettings()));
+        if (IndexModule.Type.FS.match(storeType)) { // 默认是hybridfs
+            type = IndexModule.defaultStoreType(IndexModule.NODE_STORE_ALLOW_MMAP.get(indexSettings.getNodeSettings())); // node.store.allow_mmap
         } else {
             type = IndexModule.Type.fromSettingsKey(storeType);
         }
-        Set<String> preLoadExtensions = new HashSet<>(
+        Set<String> preLoadExtensions = new HashSet<>( // 默认为null
             indexSettings.getValue(IndexModule.INDEX_STORE_PRE_LOAD_SETTING));
-        switch (type) {
-            case HYBRIDFS:
+        switch (type) { //
+            case HYBRIDFS: // 默认选择这种hybridfs
                 // Use Lucene defaults
-                final FSDirectory primaryDirectory = FSDirectory.open(location, lockFactory);
+                final FSDirectory primaryDirectory = FSDirectory.open(location, lockFactory); // 返回的是MMapDirectory
                 if (primaryDirectory instanceof MMapDirectory) {
                     MMapDirectory mMapDirectory = (MMapDirectory) primaryDirectory;
-                    return new HybridDirectory(lockFactory, setPreload(mMapDirectory, lockFactory, preLoadExtensions));
+                    return new HybridDirectory(lockFactory, setPreload(mMapDirectory, lockFactory, preLoadExtensions)); // 有使用预加载
                 } else {
                     return primaryDirectory;
                 }
@@ -98,13 +98,13 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
                 throw new AssertionError("unexpected built-in store type [" + type + "]");
         }
     }
-
+    // 通过mmap欲加载索引文件，以便加快查询速度
     public static MMapDirectory setPreload(MMapDirectory mMapDirectory, LockFactory lockFactory,
             Set<String> preLoadExtensions) throws IOException {
         assert mMapDirectory.getPreload() == false;
         if (preLoadExtensions.isEmpty() == false) {
             if (preLoadExtensions.contains("*")) {
-                mMapDirectory.setPreload(true);
+                mMapDirectory.setPreload(true); // 整个文件预加载
             } else {
                 return new PreLoadMMapDirectory(mMapDirectory, lockFactory, preLoadExtensions);
             }
@@ -121,16 +121,16 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
     }
 
     static final class HybridDirectory extends NIOFSDirectory {
-        private final MMapDirectory delegate;
-
+        private final MMapDirectory delegate; // MMapDirectory
+        // 在读取的时候，会检查映射的文件类型，要是tip等文件类型，那么就是用mmap方式读取
         HybridDirectory(LockFactory lockFactory, MMapDirectory delegate) throws IOException {
             super(delegate.getDirectory(), lockFactory);
             this.delegate = delegate;
         }
-
+        // 打开的方式有区别
         @Override
         public IndexInput openInput(String name, IOContext context) throws IOException {
-            if (useDelegate(name)) {
+            if (useDelegate(name)) { // 这里确定打开文件是使用MMAP打开，还是NIO打开
                 // we need to do these checks on the outer directory since the inner doesn't know about pending deletes
                 ensureOpen();
                 ensureCanRead(name);
@@ -140,7 +140,7 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
                 // and intersect for perf reasons.
                 return delegate.openInput(name, context);
             } else {
-                return super.openInput(name, context);
+                return super.openInput(name, context); //NIOFSIndexInput
             }
         }
 
@@ -148,9 +148,9 @@ public class FsDirectoryFactory implements IndexStorePlugin.DirectoryFactory {
         public void close() throws IOException {
             IOUtils.close(super::close, delegate);
         }
-
+        // 使用MMAP映射文件的几种方式，详情可参考https://mp.weixin.qq.com/s/BO92cM9XSulTM67Azx12XQ
         boolean useDelegate(String name) {
-            String extension = FileSwitchDirectory.getExtension(name);
+            String extension = FileSwitchDirectory.getExtension(name); // 扩展名称
             switch(extension) {
                 // Norms, doc values and term dictionaries are typically performance-sensitive and hot in the page
                 // cache, so we use mmap, which provides better performance.

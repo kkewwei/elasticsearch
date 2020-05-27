@@ -56,7 +56,7 @@ public final class TcpTransportChannel implements TransportChannel {
     public String getProfileName() {
         return channel.getProfile();
     }
-
+    // response影响
     @Override
     public void sendResponse(TransportResponse response) throws IOException {
         try {

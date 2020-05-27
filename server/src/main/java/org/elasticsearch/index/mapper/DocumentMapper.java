@@ -73,9 +73,9 @@ public class DocumentMapper implements ToXContentFragment {
             this.rootObjectMapper = builder.build(builderContext);
 
             final String type = rootObjectMapper.name();
-            final DocumentMapper existingMapper = mapperService.documentMapper(type);
+            final DocumentMapper existingMapper = mapperService.documentMapper(type); // 新的mapping是否有解析器
             final Version indexCreatedVersion = mapperService.getIndexSettings().getIndexVersionCreated();
-            final Map<String, TypeParser> metadataMapperParsers =
+            final Map<String, TypeParser> metadataMapperParsers = // 保留字段的mapping解析器
                 mapperService.mapperRegistry.getMetadataMapperParsers(indexCreatedVersion);
             for (Map.Entry<String, MetadataFieldMapper.TypeParser> entry : metadataMapperParsers.entrySet()) {
                 final String name = entry.getKey();
@@ -90,7 +90,7 @@ public class DocumentMapper implements ToXContentFragment {
                 } else {
                     metadataMapper = existingMetadataMapper;
                 }
-                metadataMappers.put(metadataMapper.getClass(), metadataMapper);
+                metadataMappers.put(metadataMapper.getClass(), metadataMapper); // 保留字段的字段解析器
             }
         }
 

@@ -48,7 +48,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
-
+// 是从内存的角度控制写入速度
 public class IndexingMemoryController implements IndexingOperationListener, Closeable {
 
     private static final Logger logger = LogManager.getLogger(IndexingMemoryController.class);

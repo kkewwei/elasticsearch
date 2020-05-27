@@ -79,7 +79,7 @@ public class ContextIndexSearcher extends IndexSearcher {
 
     private AggregatedDfs aggregatedDfs;
     private QueryProfiler profiler;
-    private MutableQueryTimeout cancellable;
+    private MutableQueryTimeout cancellable; // 默认是task取消功能
 
     public ContextIndexSearcher(IndexReader reader, Similarity similarity,
                                 QueryCache queryCache, QueryCachingPolicy queryCachingPolicy,
@@ -129,7 +129,7 @@ public class ContextIndexSearcher extends IndexSearcher {
         }
 
         try {
-            return super.rewrite(original);
+            return super.rewrite(original); // 这里双写
         } finally {
             if (profiler != null) {
                 profiler.stopAndAddRewriteTime();
@@ -139,7 +139,7 @@ public class ContextIndexSearcher extends IndexSearcher {
 
     @Override
     public Weight createWeight(Query query, ScoreMode scoreMode, float boost) throws IOException {
-        if (profiler != null) {
+        if (profiler != null) {// 忽略
             // createWeight() is called for each query in the tree, so we tell the queryProfiler
             // each invocation so that it can build an internal representation of the query
             // tree
@@ -154,8 +154,8 @@ public class ContextIndexSearcher extends IndexSearcher {
                 profiler.pollLastElement();
             }
             return new ProfileWeight(query, weight, profile);
-        } else {
-            return super.createWeight(query, scoreMode, boost);
+        } else { // 一般跑这里， 再接着进入IndexSearcher
+            return super.createWeight(query, scoreMode, boost);// 遍历FST结构
         }
     }
 
@@ -205,7 +205,7 @@ public class ContextIndexSearcher extends IndexSearcher {
         }
         Bits liveDocs = ctx.reader().getLiveDocs();
         BitSet liveDocsBitSet = getSparseBitSetOrNull(liveDocs);
-        if (liveDocsBitSet == null) {
+        if (liveDocsBitSet == null) { // 一般跑这里
             BulkScorer bulkScorer = weight.bulkScorer(ctx);
             if (bulkScorer != null) {
                 try {

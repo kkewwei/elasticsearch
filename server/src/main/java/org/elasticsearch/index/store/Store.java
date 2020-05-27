@@ -210,7 +210,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      */
     private static SegmentInfos readSegmentsInfo(IndexCommit commit, Directory directory) throws IOException {
         assert commit == null || commit.getDirectory() == directory;
-        try {
+        try { // 从segments_1中读取这个所有segments的元数据，然后再去遍历所有的_n.si的内容，获取每个segment的元数据信息
             return commit == null ? Lucene.readSegmentInfos(directory) : Lucene.readSegmentInfos(commit);
         } catch (EOFException eof) {
             // TODO this should be caught by lucene - EOF is almost certainly an index corruption
